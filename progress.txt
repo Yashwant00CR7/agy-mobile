@@ -40,3 +40,9 @@ Status: In Progress
 - Verification: npm test (12 tests passed), tsc --noEmit (clean), npm run build (clean, dist/public assets generated).
 - Notes: Created touch-first chat interface, tool approval cards with vibration alerts, diff viewer, xterm-compatible terminal view with mobile accessory bar, speech-to-text dictation, and full PWA capabilities.
 --------------------------------------------------
+
+[2026-10-06 15:13:10] Completed Task 7: Android / Termux Integration Launcher & Wake-Lock Script
+- Changes: Implemented agy-mobile.sh (launcher with Termux wake-lock management, dependency detection, auto-installer advice, dry-run mode), created README.md.
+- Verification: bash -n agy-mobile.sh (syntax valid), ./agy-mobile.sh --dry-run (passed), npm test (12 tests passed), tsc --noEmit (clean), npm run build (clean).
+- Notes: Tested launcher execution and wake-lock acquisition logic.
+--------------------------------------------------
