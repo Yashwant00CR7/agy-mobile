@@ -21,6 +21,7 @@ export class AgyProcessManager extends EventEmitter {
   private activeCwd: string = process.cwd();
   private isAutonomous: boolean = true;
   private pendingApprovals = new Map<string, (approved: boolean) => void>();
+  private turnCompleteEmitted: boolean = false;
   private readonly customBinaryPath?: string;
   private readonly spawnFn: typeof spawn;
 
@@ -97,8 +98,6 @@ export class AgyProcessManager extends EventEmitter {
     const args: string[] = [
       '-p',
       req.prompt,
-      '--input-format',
-      'stream-json',
       '--output-format',
       'stream-json'
     ];
@@ -120,6 +119,8 @@ export class AgyProcessManager extends EventEmitter {
     }
 
     const binary = this.findAgyBinary();
+
+    this.turnCompleteEmitted = false;
 
     this.emitEvent({
       type: 'status',
@@ -195,11 +196,14 @@ export class AgyProcessManager extends EventEmitter {
           this.currentProcess = null;
 
           if (code === 0) {
-            this.emitEvent({
-              type: 'turn_complete',
-              conversationId: this.currentConversationId ?? undefined,
-              timestamp: Date.now()
-            });
+            if (!this.turnCompleteEmitted) {
+              this.turnCompleteEmitted = true;
+              this.emitEvent({
+                type: 'turn_complete',
+                conversationId: this.currentConversationId ?? undefined,
+                timestamp: Date.now()
+              });
+            }
             this.emitEvent({
               type: 'status',
               status: 'idle',
@@ -248,14 +252,114 @@ export class AgyProcessManager extends EventEmitter {
   public processNdjsonEvent(raw: Record<string, any>, autonomous: boolean): void {
     const timestamp = Date.now();
 
-    // Check for conversation ID updates
-    if (raw.conversationId && typeof raw.conversationId === 'string') {
-      this.currentConversationId = raw.conversationId;
+    // Check for conversation ID updates across schemas
+    const conversationId =
+      raw.conversationId ||
+      raw.conversation_id ||
+      raw.init?.conversation_id ||
+      raw.step_update?.conversation_id ||
+      raw.result?.conversation_id;
+    if (conversationId && typeof conversationId === 'string') {
+      this.currentConversationId = conversationId;
     }
 
-    // Map common agy stream-json schemas
     const eventType = raw.type || raw.event;
 
+    // Handle real agy step_update schema
+    if (eventType === 'step_update' && raw.step_update) {
+      const step = raw.step_update;
+
+      // Extract thoughts / reasoning
+      if (step.thought || step.thinking || step.thinking_delta || step.thought_delta) {
+        const delta = String(step.thought || step.thinking || step.thinking_delta || step.thought_delta || '');
+        this.emitEvent({ type: 'thought', delta, timestamp });
+        return;
+      }
+
+      // Extract streamed text delta
+      if (step.text_delta !== undefined && step.text_delta !== null) {
+        this.emitEvent({ type: 'text', delta: String(step.text_delta), timestamp });
+        return;
+      }
+
+      // Extract tool call
+      if (step.tool_call || step.step_type === 'tool_call' || step.step_type === 'tool_use' || step.call) {
+        const call = step.tool_call || step.call || step;
+        const callId = String(call.id || `call_${Date.now()}`);
+        const toolName = String(call.name || call.tool || call.tool_name || 'unknown_tool');
+        const args = (call.args || call.parameters || call.arguments || {}) as Record<string, unknown>;
+
+        this.emitEvent({
+          type: 'tool_call',
+          id: callId,
+          name: toolName,
+          args,
+          timestamp
+        });
+
+        if (!autonomous && (step.requiresApproval || raw.requiresApproval || !autonomous)) {
+          this.emitEvent({
+            type: 'approval_required',
+            id: callId,
+            name: toolName,
+            args,
+            description: step.description || raw.description || `Approval required to execute ${toolName}`,
+            timestamp
+          });
+          this.emitEvent({
+            type: 'status',
+            status: 'waiting_approval',
+            message: `Waiting for touch approval: ${toolName}`,
+            timestamp
+          });
+        }
+        return;
+      }
+
+      // Extract tool result
+      if (step.tool_result || step.step_type === 'tool_result' || step.result) {
+        const res = step.tool_result || step.result || step;
+        this.emitEvent({
+          type: 'tool_result',
+          id: String(res.id || res.tool_call_id || ''),
+          name: String(res.name || res.tool_name || ''),
+          output: res.output ? String(res.output) : (res.content ? String(res.content) : undefined),
+          error: res.error ? String(res.error) : undefined,
+          timestamp
+        });
+        return;
+      }
+
+      if (step.diff) {
+        this.emitEvent({
+          type: 'diff',
+          file: String(step.file || step.path || 'unknown'),
+          diff: String(step.diff || ''),
+          timestamp
+        });
+        return;
+      }
+
+      return;
+    }
+
+    // Handle real agy final result schema
+    if (eventType === 'result' && raw.result) {
+      const res = raw.result;
+      if (res.conversation_id) {
+        this.currentConversationId = res.conversation_id;
+      }
+      this.turnCompleteEmitted = true;
+      this.emitEvent({
+        type: 'turn_complete',
+        conversationId: this.currentConversationId ?? undefined,
+        summary: typeof res.response === 'string' ? res.response : res.status,
+        timestamp
+      });
+      return;
+    }
+
+    // Fallbacks for mock/legacy NDJSON schemas
     if (eventType === 'thought' || raw.thought) {
       const delta = String(raw.delta || raw.thought || raw.content || '');
       this.emitEvent({ type: 'thought', delta, timestamp });
@@ -326,6 +430,7 @@ export class AgyProcessManager extends EventEmitter {
     }
 
     if (eventType === 'turn_complete' || raw.done) {
+      this.turnCompleteEmitted = true;
       this.emitEvent({
         type: 'turn_complete',
         conversationId: this.currentConversationId ?? undefined,

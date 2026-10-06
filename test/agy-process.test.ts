@@ -78,7 +78,35 @@ describe('AgyProcessManager', () => {
       assert.strictEqual(diffEvents[0].file, 'src/main.ts');
     }
 
-    // 6. Plain text fallback
+    // 6. Real agy step_update event
+    mgr.handleOutputLine(JSON.stringify({
+      event: 'step_update',
+      step_update: {
+        conversation_id: 'conv-real-123',
+        step_index: 1,
+        state: 'ACTIVE',
+        step_type: 'agent_response',
+        text_delta: 'Real streamed text'
+      }
+    }), true);
+    assert.strictEqual(mgr.getConversationId(), 'conv-real-123');
+    const stepTextEvents = captured.filter(e => e.type === 'text' && (e as any).delta === 'Real streamed text');
+    assert.strictEqual(stepTextEvents.length, 1);
+
+    // 7. Real agy result event
+    mgr.handleOutputLine(JSON.stringify({
+      event: 'result',
+      result: {
+        conversation_id: 'conv-real-123',
+        status: 'SUCCESS',
+        response: 'Final complete response'
+      }
+    }), true);
+    const resultEvents = captured.filter(e => e.type === 'turn_complete');
+    assert.strictEqual(resultEvents.length, 1);
+    assert.strictEqual((resultEvents[0] as any).summary, 'Final complete response');
+
+    // 8. Plain text fallback
     mgr.handleOutputLine('Non-json raw log line', true);
     const textEvents = captured.filter(e => e.type === 'text' && e.delta.includes('Non-json'));
     assert.strictEqual(textEvents.length, 1);
@@ -128,7 +156,8 @@ describe('AgyProcessManager', () => {
     assert.ok(spawnedArgs.includes('-p'));
     assert.ok(spawnedArgs.includes('Test prompt'));
     assert.ok(spawnedArgs.includes('--dangerously-skip-permissions'));
-    assert.ok(spawnedArgs.includes('--input-format'));
+    assert.ok(spawnedArgs.includes('--output-format'));
+    assert.ok(!spawnedArgs.includes('--input-format'), 'Must not pass --input-format when -p is specified');
 
     const completed = events.find(e => e.type === 'turn_complete');
     assert.ok(completed, 'Should emit turn_complete event');

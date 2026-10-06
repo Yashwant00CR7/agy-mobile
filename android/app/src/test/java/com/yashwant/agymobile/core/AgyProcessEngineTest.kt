@@ -45,7 +45,18 @@ class AgyProcessEngineTest {
         assertTrue(evDiff is AgyEvent.Diff)
         assertEquals("MainActivity.kt", (evDiff as AgyEvent.Diff).file)
 
-        // 6. Plaintext
+        // 6. Real agy step_update event
+        val evStep = engine.parseLine("{\"event\":\"step_update\",\"step_update\":{\"conversation_id\":\"conv-kt-123\",\"step_index\":1,\"state\":\"ACTIVE\",\"step_type\":\"agent_response\",\"text_delta\":\"Real Android streamed text\"}}", true)
+        assertTrue(evStep is AgyEvent.Text)
+        assertEquals("Real Android streamed text", (evStep as AgyEvent.Text).delta)
+        assertEquals("conv-kt-123", engine.getActiveConversationId())
+
+        // 7. Real agy result event
+        val evRes = engine.parseLine("{\"event\":\"result\",\"result\":{\"conversation_id\":\"conv-kt-123\",\"status\":\"SUCCESS\",\"response\":\"Completed task successfully\"}}", true)
+        assertTrue(evRes is AgyEvent.TurnComplete)
+        assertEquals("Completed task successfully", (evRes as AgyEvent.TurnComplete).summary)
+
+        // 8. Plaintext fallback
         val evPlain = engine.parseLine("Simple log message", true)
         assertTrue(evPlain is AgyEvent.Text)
         assertTrue((evPlain as AgyEvent.Text).delta.contains("Simple log message"))

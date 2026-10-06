@@ -41,12 +41,74 @@ class AgyProcessEngine(
         try {
             val json = JSONObject(trimmed)
 
-            if (json.has("conversationId")) {
-                activeConversationId = json.getString("conversationId")
+            // Extract conversation ID across schemas
+            val convId = when {
+                json.has("conversationId") -> json.getString("conversationId")
+                json.has("conversation_id") -> json.getString("conversation_id")
+                json.optJSONObject("step_update")?.has("conversation_id") == true -> json.getJSONObject("step_update").getString("conversation_id")
+                json.optJSONObject("result")?.has("conversation_id") == true -> json.getJSONObject("result").getString("conversation_id")
+                else -> null
+            }
+            if (!convId.isNullOrBlank()) {
+                activeConversationId = convId
             }
 
             val type = json.optString("type", json.optString("event", ""))
 
+            // Real agy step_update schema
+            if (type == "step_update" && json.has("step_update")) {
+                val step = json.getJSONObject("step_update")
+
+                if (step.has("thought") || step.has("thinking_delta") || step.has("thinking")) {
+                    val delta = step.optString("thought", step.optString("thinking_delta", step.optString("thinking", "")))
+                    return AgyEvent.Thought(delta)
+                }
+
+                if (step.has("text_delta")) {
+                    return AgyEvent.Text(step.getString("text_delta"))
+                }
+
+                if (step.has("tool_call") || step.optString("step_type") == "tool_call" || step.optString("step_type") == "tool_use") {
+                    val call = if (step.has("tool_call")) step.getJSONObject("tool_call") else step
+                    val id = call.optString("id", "call_${System.currentTimeMillis()}")
+                    val name = call.optString("name", call.optString("tool", "unknown"))
+                    val argsObj = call.optJSONObject("args") ?: call.optJSONObject("parameters") ?: JSONObject()
+                    val argsJson = argsObj.toString()
+
+                    val requiresApproval = !autonomous && (step.optBoolean("requiresApproval", !autonomous))
+                    if (requiresApproval) {
+                        val desc = step.optString("description", "Approval required to execute $name")
+                        return AgyEvent.ApprovalRequired(id, name, argsJson, desc)
+                    }
+                    return AgyEvent.ToolCall(id, name, argsJson)
+                }
+
+                if (step.has("tool_result") || step.optString("step_type") == "tool_result") {
+                    val res = if (step.has("tool_result")) step.getJSONObject("tool_result") else step
+                    val id = res.optString("id", "")
+                    val name = res.optString("name", "")
+                    val output = if (res.has("output")) res.getString("output") else null
+                    val error = if (res.has("error")) res.getString("error") else null
+                    return AgyEvent.ToolResult(id, name, output, error)
+                }
+
+                if (step.has("diff")) {
+                    val file = step.optString("file", step.optString("path", "file"))
+                    val diff = step.optString("diff", "")
+                    return AgyEvent.Diff(file, diff)
+                }
+
+                return null
+            }
+
+            // Real agy result schema
+            if (type == "result" && json.has("result")) {
+                val res = json.getJSONObject("result")
+                val summary = if (res.has("response")) res.getString("response") else if (res.has("status")) res.getString("status") else null
+                return AgyEvent.TurnComplete(activeConversationId, summary)
+            }
+
+            // Mock / fallback NDJSON schemas
             if (type == "thought" || json.has("thought")) {
                 val delta = json.optString("delta", json.optString("thought", json.optString("content", "")))
                 return AgyEvent.Thought(delta)
@@ -156,7 +218,6 @@ class AgyProcessEngine(
             val args = mutableListOf(
                 agyExecutable.absolutePath,
                 "-p", request.prompt,
-                "--input-format", "stream-json",
                 "--output-format", "stream-json"
             )
 
