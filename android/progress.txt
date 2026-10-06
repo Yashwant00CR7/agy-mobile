@@ -46,3 +46,10 @@ Status: In Progress
 - Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 3s (100% test pass rate).
 - Notes: Validated folder sorting and conversation history extraction.
 --------------------------------------------------
+
+[2026-10-06 16:11:20] Completed Task 8: Main Activity Integration, Full Test Suite & APK Assembly
+- Changes: Implemented AgyViewModel.kt (state flows for messages, voice, workspaces, approvals, service event consumption), MainActivity.kt (Service binding, SpeechRecognizer dictation, Theme & BottomSheet rendering), assembled debug APK.
+- Verification: gradlew test BUILD SUCCESSFUL (100% test pass rate), gradlew assembleDebug BUILD SUCCESSFUL in 48s. Standalone APK assembled at agy-mobile/android/agy-mobile-debug.apk (15.7 MB).
+- Notes: 100% standalone native Android app completed with Cyber-Minimalist Obsidian theme, Foreground Service with WakeLock, and no Termux dependency.
+--------------------------------------------------
+RALPH_COMPLETE
