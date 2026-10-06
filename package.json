@@ -1,0 +1,35 @@
+{
+  "name": "agy-mobile",
+  "version": "1.0.0",
+  "description": "Mobile PWA and Termux server daemon for Google Antigravity CLI (agy)",
+  "type": "module",
+  "bin": {
+    "agy-mobile": "./bin/agy-mobile.js"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --experimental-strip-types --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/server.js"
+  },
+  "keywords": [
+    "antigravity",
+    "agy",
+    "termux",
+    "android",
+    "mobile",
+    "pwa",
+    "agent"
+  ],
+  "author": "Yashwant Kanagaraj <10a19yashwant@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/ws": "^8.5.13",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.2"
+  }
+}
