@@ -56,10 +56,22 @@ async function build() {
     minify: !isDev
   });
 
-  // 3. Copy static assets if they exist in src/client
+  // 3. Build Service Worker
+  await esbuild.build({
+    entryPoints: ['src/client/sw.ts'],
+    outfile: 'dist/public/sw.js',
+    bundle: true,
+    platform: 'browser',
+    format: 'esm',
+    target: 'es2022',
+    sourcemap: isDev,
+    minify: !isDev
+  });
+
+  // 4. Copy static assets if they exist in src/client
   const clientDir = 'src/client';
   const publicDir = 'dist/public';
-  const staticFiles = ['index.html', 'style.css', 'manifest.json', 'sw.js', 'favicon.ico'];
+  const staticFiles = ['index.html', 'style.css', 'manifest.json', 'icon.svg', 'favicon.ico'];
 
   for (const file of staticFiles) {
     const srcPath = path.join(clientDir, file);
