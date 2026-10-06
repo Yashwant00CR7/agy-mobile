@@ -16,3 +16,9 @@ Status: In Progress
 - Verification: npm test (4 tests passed), tsc --noEmit (clean), npm run build (clean).
 - Notes: Supports autonomous vs supervised mode, tool approval queuing, NDJSON stream parsing, and binary resolution in Termux paths.
 --------------------------------------------------
+
+[2026-10-06 14:52:45] Completed Task 3: PTY Terminal Bridge for Live Mobile Shell
+- Changes: Implemented src/server/terminal-bridge.ts, test/terminal-bridge.test.ts.
+- Verification: npm test (6 tests passed), tsc --noEmit (clean), npm run build (clean).
+- Notes: Created TerminalBridge with bidirectional stream support, Termux shell auto-detection, input/output piping, and resize signaling without external native C dependencies.
+--------------------------------------------------
