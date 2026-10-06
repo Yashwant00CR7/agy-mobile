@@ -30,6 +30,7 @@ class AgyProcessEngine(
     private var activeProcess: Process? = null
     private var activeConversationId: String? = null
     private val pendingApprovals = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
+    @Volatile private var turnCompleteEmitted = false
 
     fun getActiveConversationId(): String? = activeConversationId
     fun isRunning(): Boolean = _status.value == AgentStatus.RUNNING || _status.value == AgentStatus.WAITING_APPROVAL
@@ -105,6 +106,7 @@ class AgyProcessEngine(
             if (type == "result" && json.has("result")) {
                 val res = json.getJSONObject("result")
                 val summary = if (res.has("response")) res.getString("response") else if (res.has("status")) res.getString("status") else null
+                turnCompleteEmitted = true
                 return AgyEvent.TurnComplete(activeConversationId, summary)
             }
 
@@ -209,6 +211,7 @@ class AgyProcessEngine(
             throw IllegalStateException("Agent turn is already running")
         }
 
+        turnCompleteEmitted = false
         _status.value = AgentStatus.RUNNING
 
         return scope.launch {
@@ -256,7 +259,10 @@ class AgyProcessEngine(
                 streamJob.join()
 
                 if (exitCode == 0) {
-                    _events.emit(AgyEvent.TurnComplete(activeConversationId, "Turn completed successfully"))
+                    if (!turnCompleteEmitted) {
+                        turnCompleteEmitted = true
+                        _events.emit(AgyEvent.TurnComplete(activeConversationId, "Turn completed successfully"))
+                    }
                     _status.value = AgentStatus.IDLE
                     _events.emit(AgyEvent.Status(AgentStatus.IDLE))
                 } else {

@@ -92,9 +92,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private var eventsCollectionJob: kotlinx.coroutines.Job? = null
+    private var boundServiceInstance: AgyAgentService? = null
 
     fun attachService(service: AgyAgentService) {
-        if (eventsCollectionJob == null || eventsCollectionJob?.isActive == false) {
+        if (boundServiceInstance !== service || eventsCollectionJob == null || eventsCollectionJob?.isActive == false) {
+            eventsCollectionJob?.cancel()
+            boundServiceInstance = service
             eventsCollectionJob = viewModelScope.launch {
                 service.engine.events.collect { event ->
                     handleEvent(event)

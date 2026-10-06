@@ -297,7 +297,8 @@ export class AgyProcessManager extends EventEmitter {
           timestamp
         });
 
-        if (!autonomous && (step.requiresApproval || raw.requiresApproval || !autonomous)) {
+        const requiresApproval = !autonomous && (step.requiresApproval ?? raw.requiresApproval ?? true);
+        if (requiresApproval) {
           this.emitEvent({
             type: 'approval_required',
             id: callId,
@@ -387,7 +388,8 @@ export class AgyProcessManager extends EventEmitter {
       });
 
       // If in supervised mode and requires approval
-      if (!autonomous && (raw.requiresApproval || !autonomous)) {
+      const requiresApproval = !autonomous && (raw.requiresApproval ?? true);
+      if (requiresApproval) {
         this.emitEvent({
           type: 'approval_required',
           id: callId,
