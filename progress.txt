@@ -10,3 +10,9 @@ Status: In Progress
 - Verification: npm run build, npx tsc --noEmit, and npm test passed cleanly.
 - Notes: Configured zero-dependency bundling for server and browser bundle for client.
 --------------------------------------------------
+
+[2026-10-06 14:52:00] Completed Task 2: Antigravity CLI Process & NDJSON Stream Engine
+- Changes: Implemented src/types/agy.ts, src/server/agy-process.ts, test/agy-process.test.ts. Configured TypeScript import handling.
+- Verification: npm test (4 tests passed), tsc --noEmit (clean), npm run build (clean).
+- Notes: Supports autonomous vs supervised mode, tool approval queuing, NDJSON stream parsing, and binary resolution in Termux paths.
+--------------------------------------------------
