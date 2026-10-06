@@ -16,3 +16,9 @@ Status: In Progress
 - Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 14s (all unit tests passed).
 - Notes: Configured execution environment without relying on Termux.
 --------------------------------------------------
+
+[2026-10-06 16:01:50] Completed Task 3: Native Agy Coroutine Process Engine
+- Changes: Implemented AgyModels.kt (events, chat message entities, prompt requests), AgyProcessEngine.kt (coroutine stream processing, NDJSON parsing, approval resolution), AgyProcessEngineTest.kt. Added org.json:json test dependency.
+- Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 3s (100% test pass rate).
+- Notes: Validated NDJSON parsing for thoughts, texts, tool calls, approval gates, diffs, and stream suspension.
+--------------------------------------------------
