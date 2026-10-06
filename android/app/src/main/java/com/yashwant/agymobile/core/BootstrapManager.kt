@@ -35,7 +35,7 @@ class BootstrapManager(
         initializeDirectories()
         val targetAgy = File(binDir, "agy")
 
-        // 1. If nativeLibraryDir contains libagy.so, link or copy it
+        // 1. If nativeLibraryDir contains libagy.so, link or copy it to binDir
         if (nativeLibDir != null) {
             val libAgy = File(nativeLibDir, "libagy.so")
             if (libAgy.exists() && libAgy.canExecute()) {
@@ -44,11 +44,10 @@ class BootstrapManager(
                         libAgy.copyTo(targetAgy, overwrite = true)
                         targetAgy.setExecutable(true, false)
                     } catch (e: Exception) {
-                        // Fallback to pointing to libAgy directly
                         return libAgy
                     }
                 }
-                return targetAgy
+                return if (targetAgy.canExecute()) targetAgy else libAgy
             }
         }
 

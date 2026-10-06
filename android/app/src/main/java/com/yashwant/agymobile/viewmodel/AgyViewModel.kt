@@ -91,6 +91,18 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    private var eventsCollectionJob: kotlinx.coroutines.Job? = null
+
+    fun attachService(service: AgyAgentService) {
+        if (eventsCollectionJob == null || eventsCollectionJob?.isActive == false) {
+            eventsCollectionJob = viewModelScope.launch {
+                service.engine.events.collect { event ->
+                    handleEvent(event)
+                }
+            }
+        }
+    }
+
     fun sendPrompt(service: AgyAgentService? = null) {
         val text = _promptText.value.trim()
         if (text.isBlank() || _isRunning.value) return
@@ -102,6 +114,10 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         val agyExe = bootstrapManager.getAgyExecutable()
         val engine = service?.engine
 
+        if (service != null) {
+            attachService(service)
+        }
+
         if (agyExe != null && engine != null) {
             val env = bootstrapManager.getEnvironmentVariables()
             val request = PromptRequest(
@@ -111,20 +127,17 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                 workspaceDir = _workspaceInfo.value.currentPath
             )
 
-            viewModelScope.launch {
-                engine.events.collect { event ->
-                    handleEvent(event)
-                }
-            }
-
             engine.startTurn(agyExe, request, env)
         } else {
-            // Simulated / Standalone fallback if binary not yet extracted
+            val reason = when {
+                agyExe == null -> "Antigravity binary (libagy.so) is not found in native libraries. Please ensure the APK was installed with native libraries extracted."
+                engine == null -> "Agent background engine is not yet connected. Please check service permissions."
+                else -> "Engine not ready."
+            }
             viewModelScope.launch {
-                kotlinx.coroutines.delay(600)
                 _messages.value = _messages.value + ChatMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = "Executed in workspace: ${_workspaceInfo.value.currentPath}\nPrompt processed."
+                    role = MessageRole.ERROR,
+                    content = reason
                 )
                 _isRunning.value = false
             }

@@ -31,8 +31,10 @@ class MainActivity : ComponentActivity() {
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? AgyAgentService.LocalBinder
-            boundService = binder?.getService()
+            val svc = binder?.getService()
+            boundService = svc
             isBound = true
+            svc?.let { viewModel.attachService(it) }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
