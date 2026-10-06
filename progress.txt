@@ -22,3 +22,9 @@ Status: In Progress
 - Verification: npm test (6 tests passed), tsc --noEmit (clean), npm run build (clean).
 - Notes: Created TerminalBridge with bidirectional stream support, Termux shell auto-detection, input/output piping, and resize signaling without external native C dependencies.
 --------------------------------------------------
+
+[2026-10-06 14:53:40] Completed Task 4: Workspace, Git & Conversation History Service
+- Changes: Implemented src/server/workspace-service.ts, test/workspace-service.test.ts.
+- Verification: npm test (9 tests passed), tsc --noEmit (clean), npm run build (clean).
+- Notes: Created directory browser with git branch & dirty state detection, path traversal safeguards, and recent agy conversation parser for ~/.gemini/antigravity-cli/brain/.
+--------------------------------------------------
