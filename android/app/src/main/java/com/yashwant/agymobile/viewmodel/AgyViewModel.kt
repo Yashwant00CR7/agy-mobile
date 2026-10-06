@@ -27,6 +27,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         brainDir = File(application.filesDir, "home/.gemini/antigravity-cli/brain")
     )
 
+    val authManager = com.yashwant.agymobile.core.AuthManager(bootstrapManager, viewModelScope)
+    val authState: StateFlow<AuthState> = authManager.authState
+
+    private val _showAuthSheet = MutableStateFlow(false)
+    val showAuthSheet: StateFlow<Boolean> = _showAuthSheet.asStateFlow()
+
     private val _messages = MutableStateFlow<List<ChatMessage>>(
         listOf(
             ChatMessage(
@@ -106,9 +112,65 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun openAuthSheet() {
+        _showAuthSheet.value = true
+        if (!authState.value.isAuthenticated && !authState.value.isAuthenticating) {
+            startLogin()
+        }
+    }
+
+    fun dismissAuthSheet() {
+        _showAuthSheet.value = false
+        authManager.cancelAuthSession()
+    }
+
+    fun startLogin() {
+        val agyExe = bootstrapManager.getAgyExecutable() ?: return
+        authManager.startAuthSession(agyExe, bootstrapManager.getEnvironmentVariables())
+    }
+
+    fun submitAuthCode(code: String) {
+        viewModelScope.launch {
+            val success = authManager.submitAuthCode(code)
+            if (success) {
+                _showAuthSheet.value = false
+                _messages.value = _messages.value + ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = "Successfully authenticated as ${authManager.authState.value.userEmail ?: "Google Account"}. Antigravity agent is ready!"
+                )
+            }
+        }
+    }
+
+    fun importCredentials(json: String) {
+        val success = authManager.importCredentials(json)
+        if (success) {
+            _showAuthSheet.value = false
+            _messages.value = _messages.value + ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "Credentials successfully imported. Authenticated as ${authManager.authState.value.userEmail ?: "Google Account"}."
+            )
+        }
+    }
+
+    fun signOut() {
+        authManager.signOut()
+        _messages.value = _messages.value + ChatMessage(
+            role = MessageRole.ASSISTANT,
+            content = "Signed out of Google Account. Please sign in again to run Antigravity agent."
+        )
+    }
+
     fun sendPrompt(service: AgyAgentService? = null) {
         val text = _promptText.value.trim()
         if (text.isBlank() || _isRunning.value) return
+
+        if (!authState.value.isAuthenticated) {
+            _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
+            _promptText.value = ""
+            openAuthSheet()
+            return
+        }
 
         _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
         _promptText.value = ""
@@ -149,6 +211,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun handleEvent(event: AgyEvent) {
         when (event) {
+            is AgyEvent.AuthRequired -> {
+                _showAuthSheet.value = true
+            }
             is AgyEvent.TurnStart -> {
                 _isRunning.value = true
                 event.conversationId?.let { activeConversationId = it }

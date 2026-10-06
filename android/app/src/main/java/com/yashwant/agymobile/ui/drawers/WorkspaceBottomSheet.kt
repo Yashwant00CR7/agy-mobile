@@ -33,7 +33,10 @@ fun WorkspaceBottomSheet(
     onSelectDirectory: (File) -> Unit,
     onCreateProject: (String) -> Unit,
     onResumeConversation: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    authState: com.yashwant.agymobile.model.AuthState = com.yashwant.agymobile.model.AuthState(),
+    onOpenAuth: () -> Unit = {},
+    onSignOut: () -> Unit = {}
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var newProjectName by remember { mutableStateOf("") }
@@ -50,6 +53,64 @@ fun WorkspaceBottomSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Google Account Bar
+            Card(
+                colors = CardDefaults.cardColors(containerColor = ObsidianElevated),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(if (authState.isAuthenticated) EmeraldSuccess else AmberWarning)
+                        )
+                        Column {
+                            Text(
+                                text = if (authState.isAuthenticated) (authState.userEmail ?: "Google Account") else "Google Account Required",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = if (authState.isAuthenticated) "Ready for Antigravity turns" else "Tap to authenticate agent",
+                                color = TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                    if (authState.isAuthenticated) {
+                        TextButton(onClick = { onSignOut() }) {
+                            Text("Sign Out", color = CrimsonDanger, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                onDismiss()
+                                onOpenAuth()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AmberWarning, contentColor = ObsidianBlack),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Text("Sign In", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
             // Tab Selector
             TabRow(
                 selectedTabIndex = selectedTab,

@@ -14,9 +14,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.*
 import com.yashwant.agymobile.service.AgyAgentService
+import com.yashwant.agymobile.ui.components.AuthBottomSheet
 import com.yashwant.agymobile.ui.drawers.WorkspaceBottomSheet
 import com.yashwant.agymobile.ui.screens.ChatScreen
 import com.yashwant.agymobile.ui.theme.AgyTheme
+import com.yashwant.agymobile.ui.util.BrowserHelper
 import com.yashwant.agymobile.viewmodel.AgyViewModel
 import java.io.File
 import java.util.Locale
@@ -43,6 +45,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -62,6 +65,8 @@ class MainActivity : ComponentActivity() {
                 val workspaceInfo by viewModel.workspaceInfo.collectAsState()
                 val conversations by viewModel.conversations.collectAsState()
                 val isVoiceRecording by viewModel.isVoiceRecording.collectAsState()
+                val authState by viewModel.authState.collectAsState()
+                val showAuthSheet by viewModel.showAuthSheet.collectAsState()
 
                 var showWorkspaceSheet by remember { mutableStateOf(false) }
 
@@ -83,8 +88,22 @@ class MainActivity : ComponentActivity() {
                     onApprove = { toolId -> viewModel.resolveApproval(toolId, true, boundService) },
                     onDeny = { toolId -> viewModel.resolveApproval(toolId, false, boundService) },
                     onVoiceClick = { toggleVoiceDictation() },
-                    isVoiceRecording = isVoiceRecording
+                    isVoiceRecording = isVoiceRecording,
+                    authState = authState,
+                    onOpenAuth = { viewModel.openAuthSheet() }
                 )
+
+                if (showAuthSheet) {
+                    AuthBottomSheet(
+                        authState = authState,
+                        onDismiss = { viewModel.dismissAuthSheet() },
+                        onStartLogin = { viewModel.startLogin() },
+                        onLaunchBrowser = { url -> BrowserHelper.openUrl(this@MainActivity, url) },
+                        onSubmitCode = { code -> viewModel.submitAuthCode(code) },
+                        onImportJson = { json -> viewModel.importCredentials(json) },
+                        onSignOut = { viewModel.signOut() }
+                    )
+                }
 
                 if (showWorkspaceSheet) {
                     WorkspaceBottomSheet(
@@ -93,7 +112,10 @@ class MainActivity : ComponentActivity() {
                         onSelectDirectory = { dir -> viewModel.selectWorkspace(dir) },
                         onCreateProject = { name -> viewModel.createProject(name) },
                         onResumeConversation = { id -> viewModel.resumeConversation(id) },
-                        onDismiss = { showWorkspaceSheet = false }
+                        onDismiss = { showWorkspaceSheet = false },
+                        authState = authState,
+                        onOpenAuth = { viewModel.openAuthSheet() },
+                        onSignOut = { viewModel.signOut() }
                     )
                 }
             }

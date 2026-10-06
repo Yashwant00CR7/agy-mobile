@@ -75,6 +75,14 @@ Current Task: Task 12 - ViewModel & Chat Screen Integration, Backpressure Verifi
 - Notes: Designed Obsidian OLED aesthetic matching the existing design system.
 --------------------------------------------------
 
+[2026-10-07 01:04:15] Completed Task 12: ViewModel & Chat Screen Integration, Backpressure Verification & APK Assembly
+- Changes: Integrated AuthManager and AuthState into AgyViewModel.kt (openAuthSheet, dismissAuthSheet, startLogin, submitAuthCode, importCredentials, signOut, proactive unauthenticated gate in sendPrompt), updated ChatScreen.kt (AuthBanner top bar integration, auth trigger quick chip), updated WorkspaceBottomSheet.kt (Google Account status bar with Sign In/Sign Out actions), updated MainActivity.kt (AuthBottomSheet rendering and Chrome Custom Tabs launcher), added unit tests in AgyProcessEngineTest.kt.
+- Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test assembleDebug completed with 100% test pass rate and clean build. Standalone APK assembled at agy-mobile/android/agy-mobile-debug.apk (74 MB).
+- Notes: Complete in-phone native authentication flow successfully verified with real background process support.
+--------------------------------------------------
+RALPH_COMPLETE
+
+
 
 
 

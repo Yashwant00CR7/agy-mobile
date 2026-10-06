@@ -93,4 +93,10 @@ class AgyProcessEngineTest {
 
         assertTrue(emitted.any { it is AgyEvent.TurnComplete })
     }
+
+    @Test
+    fun testSendInputWithoutProcess() {
+        val engine = AgyProcessEngine()
+        assertFalse(engine.sendInput("dummy-auth-code"))
+    }
 }

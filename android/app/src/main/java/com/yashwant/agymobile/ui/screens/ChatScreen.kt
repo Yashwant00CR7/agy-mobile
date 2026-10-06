@@ -43,6 +43,8 @@ fun ChatScreen(
     onDeny: (String) -> Unit,
     onVoiceClick: () -> Unit,
     isVoiceRecording: Boolean,
+    authState: com.yashwant.agymobile.model.AuthState = com.yashwant.agymobile.model.AuthState(isAuthenticated = true),
+    onOpenAuth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -97,31 +99,55 @@ fun ChatScreen(
                     }
                 }
 
-                // Autonomous / Supervised Mode Pill
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(if (isAutonomous) Color(0x2610B981) else Color(0x26F59E0B))
-                        .border(1.dp, if (isAutonomous) EmeraldSuccess else AmberWarning, RoundedCornerShape(16.dp))
-                        .clickable { onToggleAutonomous() }
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
+                    // Auth Status Quick Chip
+                    if (!authState.isAuthenticated) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(if (isAutonomous) EmeraldSuccess else AmberWarning)
-                        )
-                        Text(
-                            text = if (isAutonomous) "Autonomous" else "Supervised",
-                            color = if (isAutonomous) EmeraldSuccess else AmberWarning,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(AmberGlow)
+                                .border(1.dp, AmberWarning, RoundedCornerShape(16.dp))
+                                .clickable { onOpenAuth() }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Sign In",
+                                color = AmberWarning,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Autonomous / Supervised Mode Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (isAutonomous) Color(0x2610B981) else Color(0x26F59E0B))
+                            .border(1.dp, if (isAutonomous) EmeraldSuccess else AmberWarning, RoundedCornerShape(16.dp))
+                            .clickable { onToggleAutonomous() }
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isAutonomous) EmeraldSuccess else AmberWarning)
+                            )
+                            Text(
+                                text = if (isAutonomous) "Autonomous" else "Supervised",
+                                color = if (isAutonomous) EmeraldSuccess else AmberWarning,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
@@ -143,14 +169,24 @@ fun ChatScreen(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
-            contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            AuthBanner(
+                authState = authState,
+                onSignInClick = onOpenAuth
+            )
+
+            LazyColumn(
+                state = listState,
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
             items(messages, key = { it.id }) { msg ->
                 when (msg.role) {
                     MessageRole.USER -> {
@@ -234,4 +270,5 @@ fun ChatScreen(
             }
         }
     }
+}
 }
