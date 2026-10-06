@@ -43,6 +43,26 @@ fun AuthBottomSheet(
     var rawJsonInput by remember { mutableStateOf("") }
     var showJsonImport by remember { mutableStateOf(false) }
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                try {
+                    val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)
+                        ?.primaryClip
+                    val text = clip?.getItemAt(0)?.text?.toString()?.trim()
+                    if (!text.isNullOrBlank() && text.startsWith("4/0A")) {
+                        authCodeInput = text
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,

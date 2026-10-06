@@ -58,14 +58,21 @@ class AuthManager(
         )
 
         return scope.launch(dispatcher) {
+            bootstrapManager.initializeDirectories()
             val args = listOf(
                 agyExecutable.absolutePath,
                 "-p", "ping",
-                "--output-format", "stream-json"
+                "--output-format", "stream-json",
+                "--dangerously-skip-permissions"
             )
 
             val pb = ProcessBuilder(args)
+            if (bootstrapManager.defaultWorkspaceDir.exists()) {
+                pb.directory(bootstrapManager.defaultWorkspaceDir)
+            }
             pb.environment().putAll(envVars)
+
+            val fullLog = StringBuilder()
 
             try {
                 val proc = pb.start()
@@ -74,11 +81,20 @@ class AuthManager(
                 val errorReader = proc.errorStream.bufferedReader()
                 val outReader = proc.inputStream.bufferedReader()
 
-                // Concurrently drain stdout
+                // Concurrently drain stdout and check for OAuth URL
                 launch {
                     try {
-                        while (isActive && outReader.readLine() != null) {
-                            // Drain output
+                        var outLine: String?
+                        while (isActive) {
+                            outLine = outReader.readLine() ?: break
+                            fullLog.append(outLine).append("\n")
+                            val url = extractOAuthUrl(outLine)
+                            if (url != null) {
+                                _authState.value = _authState.value.copy(
+                                    isAuthenticating = true,
+                                    authUrl = url
+                                )
+                            }
                         }
                     } catch (_: Exception) {}
                 }
@@ -87,6 +103,7 @@ class AuthManager(
                 var line: String?
                 while (isActive) {
                     line = errorReader.readLine() ?: break
+                    fullLog.append(line).append("\n")
                     val url = extractOAuthUrl(line)
                     if (url != null) {
                         _authState.value = _authState.value.copy(
@@ -106,9 +123,10 @@ class AuthManager(
                         error = null
                     )
                 } else if (_authState.value.isAuthenticating) {
+                    val logText = fullLog.toString().trim()
                     _authState.value = _authState.value.copy(
                         isAuthenticating = false,
-                        error = "Authentication process exited with code $exitCode"
+                        error = if (logText.isNotBlank()) logText else "Authentication process exited with code $exitCode"
                     )
                 }
             } catch (e: Exception) {
@@ -124,13 +142,44 @@ class AuthManager(
         }
     }
 
-    suspend fun submitAuthCode(code: String): Boolean = withContext(dispatcher) {
-        val proc = activeAuthProcess ?: return@withContext false
+    suspend fun submitAuthCode(
+        code: String,
+        agyExecutable: File? = null,
+        envVars: Map<String, String>? = null
+    ): Boolean = withContext(dispatcher) {
         val trimmed = code.trim()
         if (trimmed.isEmpty()) return@withContext false
 
+        var proc = activeAuthProcess
+
+        // If active process died or timed out, relaunch fresh probe with code on stdin
+        if (proc == null || !proc.isAlive) {
+            val exe = agyExecutable ?: bootstrapManager.getAgyExecutable()
+            val env = envVars ?: bootstrapManager.getEnvironmentVariables()
+            if (exe != null) {
+                bootstrapManager.initializeDirectories()
+                val args = listOf(
+                    exe.absolutePath,
+                    "-p", "ping",
+                    "--output-format", "stream-json",
+                    "--dangerously-skip-permissions"
+                )
+                val pb = ProcessBuilder(args)
+                if (bootstrapManager.defaultWorkspaceDir.exists()) {
+                    pb.directory(bootstrapManager.defaultWorkspaceDir)
+                }
+                pb.environment().putAll(env)
+                try {
+                    proc = pb.start()
+                    activeAuthProcess = proc
+                } catch (_: Exception) {}
+            }
+        }
+
+        val targetProc = proc ?: return@withContext false
+
         try {
-            val writer = proc.outputStream.bufferedWriter()
+            val writer = targetProc.outputStream.bufferedWriter()
             writer.write(trimmed)
             writer.newLine()
             writer.flush()
@@ -148,7 +197,7 @@ class AuthManager(
                     )
                     return@withContext true
                 }
-                if (!proc.isAlive) break
+                if (!targetProc.isAlive) break
             }
 
             val success = bootstrapManager.isLoggedIn()
@@ -161,9 +210,10 @@ class AuthManager(
                     error = null
                 )
             } else {
+                val err = targetProc.errorStream.bufferedReader().readText().trim()
                 _authState.value = _authState.value.copy(
                     isAuthenticating = false,
-                    error = "Failed to authenticate with authorization code"
+                    error = if (err.isNotBlank()) err else "Failed to authenticate with authorization code"
                 )
             }
             return@withContext success

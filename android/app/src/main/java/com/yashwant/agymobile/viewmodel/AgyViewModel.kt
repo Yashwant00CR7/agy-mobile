@@ -131,7 +131,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitAuthCode(code: String) {
         viewModelScope.launch {
-            val success = authManager.submitAuthCode(code)
+            val agyExe = bootstrapManager.getAgyExecutable()
+            val env = bootstrapManager.getEnvironmentVariables()
+            val success = authManager.submitAuthCode(code, agyExe, env)
             if (success) {
                 _showAuthSheet.value = false
                 _messages.value = _messages.value + ChatMessage(
