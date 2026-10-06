@@ -46,3 +46,10 @@ Status: In Progress
 - Verification: bash -n agy-mobile.sh (syntax valid), ./agy-mobile.sh --dry-run (passed), npm test (12 tests passed), tsc --noEmit (clean), npm run build (clean).
 - Notes: Tested launcher execution and wake-lock acquisition logic.
 --------------------------------------------------
+
+[2026-10-06 15:14:50] Completed Task 8: End-to-End Build, Bundling & Full Verification
+- Changes: Implemented bin/agy-mobile.js, fixed static directory resolution in dist/server.js, verified end-to-end bundling, HTTP & WebSocket serving, and health checks.
+- Verification: npm test (12 tests passed, 0 failures), tsc --noEmit (clean), npm run build (27ms clean build), direct node dist/server.js health check passed.
+- Notes: agy-mobile is production-ready for Android Termux with zero runtime dependencies.
+--------------------------------------------------
+RALPH_COMPLETE

@@ -23,10 +23,20 @@ export function createAgyMobileServer(options: ServerOptions = {}) {
   const workspaceService = options.workspaceService ?? new WorkspaceService(agyManager.getCwd());
 
   // Determine static files directory
-  const defaultStaticDir = path.resolve(
-    path.join(path.dirname(fileURLToPath(import.meta.url)), '../public')
-  );
-  const staticDir = options.staticDir ?? defaultStaticDir;
+  const currentDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidateDirs = [
+    path.join(currentDir, 'public'),
+    path.join(currentDir, '../dist/public'),
+    path.join(process.cwd(), 'dist/public')
+  ];
+  let resolvedStaticDir = candidateDirs[0];
+  for (const dir of candidateDirs) {
+    if (fs.existsSync(dir)) {
+      resolvedStaticDir = dir;
+      break;
+    }
+  }
+  const staticDir = options.staticDir ?? resolvedStaticDir;
 
   const mimeTypes: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
