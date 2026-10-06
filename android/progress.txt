@@ -40,3 +40,9 @@ Status: In Progress
 - Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 3s (100% test pass rate).
 - Notes: Created Cyber-Minimalist Obsidian UI layout with smooth animations and haptics.
 --------------------------------------------------
+
+[2026-10-06 16:08:40] Completed Task 7: Workspace Browser & Conversation History Bottom Sheet
+- Changes: Implemented WorkspaceManager.kt (directory listing, project creator, git branch extractor, brain transcript history parser), WorkspaceBottomSheet.kt (ModalBottomSheet for workspace navigation, project creation, and history resume), WorkspaceManagerTest.kt.
+- Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 3s (100% test pass rate).
+- Notes: Validated folder sorting and conversation history extraction.
+--------------------------------------------------
