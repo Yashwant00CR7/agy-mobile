@@ -28,3 +28,9 @@ Status: In Progress
 - Verification: npm test (9 tests passed), tsc --noEmit (clean), npm run build (clean).
 - Notes: Created directory browser with git branch & dirty state detection, path traversal safeguards, and recent agy conversation parser for ~/.gemini/antigravity-cli/brain/.
 --------------------------------------------------
+
+[2026-10-06 15:08:45] Completed Task 5: HTTP & WebSocket API Server
+- Changes: Implemented src/server/index.ts (HTTP/REST + WebSocket server for /ws/chat and /ws/pty), updated test/server.test.ts.
+- Verification: npm test (12 tests passed), tsc --noEmit (clean), npm run build (clean).
+- Notes: Created endpoints for status, mode toggling, workspace inspection/selection, conversation history, prompt turns, and WebSocket streaming.
+--------------------------------------------------

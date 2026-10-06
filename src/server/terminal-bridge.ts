@@ -116,7 +116,13 @@ export class TerminalSession extends EventEmitter {
 
   public kill(signal: NodeJS.Signals = 'SIGTERM'): void {
     if (this.child && this.isAlive) {
-      this.child.kill(signal);
+      try {
+        this.child.stdin?.end();
+        this.child.kill(signal);
+        this.child.kill('SIGKILL');
+      } catch {
+        // Ignore errors during process kill
+      }
     }
     this.cleanup();
   }
