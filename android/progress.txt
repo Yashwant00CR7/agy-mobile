@@ -22,3 +22,9 @@ Status: In Progress
 - Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 3s (100% test pass rate).
 - Notes: Validated NDJSON parsing for thoughts, texts, tool calls, approval gates, diffs, and stream suspension.
 --------------------------------------------------
+
+[2026-10-06 16:02:55] Completed Task 4: Android Foreground Service & Notification Shade Actions
+- Changes: Implemented AgyAgentService.kt (Foreground Service, WakeLock, interactive notifications with Approve/Deny actions, LocalBinder), MainActivity.kt placeholder, AgyAgentServiceTest.kt.
+- Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL in 6s (100% test pass rate).
+- Notes: Validated service intent actions, notification channel configuration, and event binding.
+--------------------------------------------------
