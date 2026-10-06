@@ -50,7 +50,8 @@ class BootstrapManagerTest {
 
         assertNotNull(agyFile)
         assertTrue(manager.isAgyReady())
-        assertEquals("agy", agyFile!!.name)
+        assertEquals("libagy.so", agyFile!!.name)
+        assertEquals(libAgy.absolutePath, agyFile.absolutePath)
     }
 
     @Test
@@ -64,5 +65,10 @@ class BootstrapManagerTest {
         assertEquals(manager.homeDir.absolutePath, env["HOME"])
         assertEquals(manager.tmpDir.absolutePath, env["TMPDIR"])
         assertEquals("cat", env["PAGER"])
+
+        val managerWithNative = BootstrapManager(root, tempFolder.newFolder("lib_dir"))
+        val envNative = managerWithNative.getEnvironmentVariables()
+        assertTrue(envNative.containsKey("LD_LIBRARY_PATH"))
+        assertTrue(envNative["PATH"]!!.contains("lib_dir"))
     }
 }

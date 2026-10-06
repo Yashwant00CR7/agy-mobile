@@ -33,40 +33,39 @@ class BootstrapManager(
 
     fun setupAgyFromNativeLib(): File? {
         initializeDirectories()
-        val targetAgy = File(binDir, "agy")
 
-        // 1. If nativeLibraryDir contains libagy.so, link or copy it to binDir
+        // 1. Clean up any stale copy in binDir that would fail with error=13 on Android 10+
+        val staleInBin = File(binDir, "agy")
+        if (staleInBin.exists()) {
+            try {
+                staleInBin.delete()
+            } catch (_: Exception) {}
+        }
+
+        // 2. Return libagy.so directly from nativeLibraryDir.
+        // On Android 10+ (API 29+), executing from nativeLibraryDir is permitted by SELinux (apk_data_file),
+        // whereas executing copied binaries from app filesDir is strictly blocked by W^X restrictions (error=13).
         if (nativeLibDir != null) {
             val libAgy = File(nativeLibDir, "libagy.so")
             if (libAgy.exists() && libAgy.canExecute()) {
-                if (!targetAgy.exists() || targetAgy.length() != libAgy.length()) {
-                    try {
-                        libAgy.copyTo(targetAgy, overwrite = true)
-                        targetAgy.setExecutable(true, false)
-                    } catch (e: Exception) {
-                        return libAgy
-                    }
-                }
-                return if (targetAgy.canExecute()) targetAgy else libAgy
+                return libAgy
             }
-        }
-
-        // 2. If target already exists in binDir
-        if (targetAgy.exists() && targetAgy.canExecute()) {
-            return targetAgy
         }
 
         return null
     }
 
     fun getAgyExecutable(): File? {
-        val inBin = File(binDir, "agy")
-        if (inBin.exists() && inBin.canExecute()) return inBin
-
+        // ALWAYS prefer nativeLibDir because Android 10+ (API 29+) SELinux W^X
+        // strictly blocks executing binaries from filesDir (error=13 Permission denied).
+        // Only binaries inside nativeLibraryDir (apk_data_file context) can be executed.
         if (nativeLibDir != null) {
             val inLib = File(nativeLibDir, "libagy.so")
             if (inLib.exists() && inLib.canExecute()) return inLib
         }
+
+        val inBin = File(binDir, "agy")
+        if (inBin.exists() && inBin.canExecute()) return inBin
 
         return null
     }
@@ -77,6 +76,9 @@ class BootstrapManager(
 
     fun getEnvironmentVariables(): Map<String, String> {
         val pathBuilder = StringBuilder()
+        if (nativeLibDir != null) {
+            pathBuilder.append(nativeLibDir.absolutePath).append(":")
+        }
         pathBuilder.append(binDir.absolutePath)
         pathBuilder.append(":/system/bin:/system/xbin")
 
@@ -85,7 +87,7 @@ class BootstrapManager(
             pathBuilder.append(":").append(currentPath)
         }
 
-        return mapOf(
+        val env = mutableMapOf(
             "PATH" to pathBuilder.toString(),
             "HOME" to homeDir.absolutePath,
             "TMPDIR" to tmpDir.absolutePath,
@@ -93,5 +95,11 @@ class BootstrapManager(
             "PAGER" to "cat",
             "COLORTERM" to "truecolor"
         )
+
+        if (nativeLibDir != null) {
+            env["LD_LIBRARY_PATH"] = nativeLibDir.absolutePath
+        }
+
+        return env
     }
 }
