@@ -250,6 +250,22 @@ class AgyProcessEngine(
                 val process = processBuilder.start()
                 activeProcess = process
 
+                val errorBuffer = StringBuilder()
+                val errorJob = launch(Dispatchers.IO) {
+                    try {
+                        val errReader = process.errorStream.bufferedReader()
+                        var errLine: String?
+                        while (isActive) {
+                            errLine = errReader.readLine() ?: break
+                            errorBuffer.append(errLine).append("\n")
+                            val authUrl = AuthManager.extractOAuthUrl(errLine)
+                            if (authUrl != null) {
+                                _events.emit(AgyEvent.AuthRequired(authUrl))
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+
                 // Process standard output
                 val streamJob = launch {
                     processStream(process.inputStream, request.autonomous)
@@ -257,6 +273,7 @@ class AgyProcessEngine(
 
                 val exitCode = process.waitFor()
                 streamJob.join()
+                errorJob.cancelAndJoin()
 
                 if (exitCode == 0) {
                     if (!turnCompleteEmitted) {
@@ -266,7 +283,7 @@ class AgyProcessEngine(
                     _status.value = AgentStatus.IDLE
                     _events.emit(AgyEvent.Status(AgentStatus.IDLE))
                 } else {
-                    val errText = process.errorStream.bufferedReader().readText()
+                    val errText = errorBuffer.toString().trim()
                     _events.emit(AgyEvent.Error(errText.ifBlank { "agy exited with code $exitCode" }))
                     _status.value = AgentStatus.ERROR
                     _events.emit(AgyEvent.Status(AgentStatus.ERROR, "Process exited with code $exitCode"))
@@ -283,6 +300,20 @@ class AgyProcessEngine(
                     _status.value = AgentStatus.IDLE
                 }
             }
+        }
+    }
+
+    fun sendInput(input: String): Boolean {
+        val proc = activeProcess ?: return false
+        return try {
+            proc.outputStream.bufferedWriter().apply {
+                write(input)
+                newLine()
+                flush()
+            }
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 

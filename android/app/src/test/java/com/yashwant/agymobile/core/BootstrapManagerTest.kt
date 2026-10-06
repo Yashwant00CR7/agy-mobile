@@ -71,4 +71,30 @@ class BootstrapManagerTest {
         assertTrue(envNative.containsKey("LD_LIBRARY_PATH"))
         assertTrue(envNative["PATH"]!!.contains("lib_dir"))
     }
+
+    @Test
+    fun testCredentialManagement() {
+        val root = tempFolder.newFolder("app_files_creds")
+        val manager = BootstrapManager(root)
+
+        assertFalse(manager.isLoggedIn())
+        assertNull(manager.getAuthAccount())
+
+        val sampleCreds = """
+            {
+              "access_token": "ya29.sample",
+              "refresh_token": "1//sample_refresh",
+              "token_type": "Bearer"
+            }
+        """.trimIndent()
+
+        assertTrue(manager.writeCredentials(sampleCreds, "user@example.com"))
+        assertTrue(manager.isLoggedIn())
+        assertEquals("user@example.com", manager.getAuthAccount())
+        assertTrue(manager.getSettingsFile().exists())
+
+        assertTrue(manager.clearAuth())
+        assertFalse(manager.isLoggedIn())
+        assertNull(manager.getAuthAccount())
+    }
 }

@@ -102,4 +102,96 @@ class BootstrapManager(
 
         return env
     }
+
+    val geminiDir: File = File(homeDir, ".gemini")
+
+    fun getOauthCredsFile(): File = File(geminiDir, "oauth_creds.json")
+    fun getGoogleAccountsFile(): File = File(geminiDir, "google_accounts.json")
+    fun getSettingsFile(): File = File(geminiDir, "settings.json")
+
+    fun isLoggedIn(): Boolean {
+        val creds = getOauthCredsFile()
+        return creds.exists() && creds.length() > 0
+    }
+
+    fun getAuthAccount(): String? {
+        val accountsFile = getGoogleAccountsFile()
+        if (accountsFile.exists()) {
+            try {
+                val json = org.json.JSONObject(accountsFile.readText())
+                val active = json.optString("active", "")
+                if (active.isNotBlank()) return active
+            } catch (_: Exception) {}
+        }
+
+        val credsFile = getOauthCredsFile()
+        if (credsFile.exists()) {
+            try {
+                val json = org.json.JSONObject(credsFile.readText())
+                if (json.has("id_token")) {
+                    val idToken = json.getString("id_token")
+                    val parts = idToken.split(".")
+                    if (parts.size >= 2) {
+                        val base64Part = parts[1]
+                        val decodedBytes = try {
+                            java.util.Base64.getUrlDecoder().decode(base64Part)
+                        } catch (_: Exception) {
+                            java.util.Base64.getDecoder().decode(base64Part)
+                        }
+                        val payload = String(decodedBytes)
+                        val jwtJson = org.json.JSONObject(payload)
+                        val email = jwtJson.optString("email", "")
+                        if (email.isNotBlank()) return email
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+
+        return null
+    }
+
+    fun writeCredentials(oauthJson: String, email: String? = null): Boolean {
+        try {
+            geminiDir.mkdirs()
+            getOauthCredsFile().writeText(oauthJson.trim())
+
+            // Default security settings
+            val settings = getSettingsFile()
+            if (!settings.exists()) {
+                val settingsJson = org.json.JSONObject()
+                val sec = org.json.JSONObject()
+                val auth = org.json.JSONObject()
+                auth.put("selectedType", "oauth-personal")
+                sec.put("auth", auth)
+                settingsJson.put("security", sec)
+                settings.writeText(settingsJson.toString(2))
+            }
+
+            // Google accounts file
+            val targetEmail = email ?: getAuthAccount()
+            if (!targetEmail.isNullOrBlank()) {
+                val accountsJson = org.json.JSONObject()
+                accountsJson.put("active", targetEmail)
+                accountsJson.put("old", org.json.JSONArray())
+                getGoogleAccountsFile().writeText(accountsJson.toString(2))
+            }
+
+            return true
+        } catch (_: Exception) {
+            return false
+        }
+    }
+
+    fun clearAuth(): Boolean {
+        var success = true
+        val creds = getOauthCredsFile()
+        if (creds.exists()) {
+            success = success && creds.delete()
+        }
+        val accounts = getGoogleAccountsFile()
+        if (accounts.exists()) {
+            accounts.delete()
+        }
+        return success
+    }
 }

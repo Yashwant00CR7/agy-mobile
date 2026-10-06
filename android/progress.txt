@@ -52,4 +52,15 @@ Status: In Progress
 - Verification: gradlew test BUILD SUCCESSFUL (100% test pass rate), gradlew assembleDebug BUILD SUCCESSFUL in 48s. Standalone APK assembled at agy-mobile/android/agy-mobile-debug.apk (15.7 MB).
 - Notes: 100% standalone native Android app completed with Cyber-Minimalist Obsidian theme, Foreground Service with WakeLock, and no Termux dependency.
 --------------------------------------------------
-RALPH_COMPLETE
+Status: In Progress (Feature: In-Phone Native Google Authentication Flow)
+Started: 2026-10-07 00:51:30
+Current Task: Task 10 - Chrome Custom Tabs Integration & Browser Helper
+--------------------------------------------------
+
+[2026-10-07 00:54:30] Completed Task 9: Authentication Core Engine & Subprocess Stream Handler
+- Changes: Implemented AuthManager.kt (stderr OAuth URL extraction, auth probe process, code injection via stdin, JSON token import, sign out), updated BootstrapManager.kt (geminiDir, isLoggedIn, getAuthAccount, writeCredentials, clearAuth), enhanced AgyProcessEngine.kt (concurrent stderr reading for OAuth URL detection, sendInput stdin pipe), added AuthState and AuthRequired to AgyModels.kt, added AuthManagerTest.kt and BootstrapManager credential tests.
+- Verification: JAVA_HOME=/opt/homebrew/opt/openjdk@17 ./gradlew test BUILD SUCCESSFUL (100% test pass rate).
+- Notes: Validated OAuth URL regex parsing, token file persistence, and concurrent error stream monitoring without blocking execution.
+--------------------------------------------------
+
+

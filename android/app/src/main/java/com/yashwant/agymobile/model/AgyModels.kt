@@ -65,8 +65,18 @@ sealed class AgyEvent {
         val message: String? = null,
         val timestamp: Long = System.currentTimeMillis()
     ) : AgyEvent()
+    data class AuthRequired(val authUrl: String, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()
+    data class AuthSuccess(val userEmail: String?, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()
     data class Error(val message: String, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()
 }
+
+data class AuthState(
+    val isAuthenticated: Boolean = false,
+    val userEmail: String? = null,
+    val isAuthenticating: Boolean = false,
+    val authUrl: String? = null,
+    val error: String? = null
+)
 
 data class PromptRequest(
     val prompt: String,
