@@ -33,14 +33,22 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _showAuthSheet = MutableStateFlow(false)
     val showAuthSheet: StateFlow<Boolean> = _showAuthSheet.asStateFlow()
 
-    private val _messages = MutableStateFlow<List<ChatMessage>>(
-        listOf(
-            ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = "Antigravity Native Ready. Running in standalone mobile environment."
-            )
-        )
+    val availableModels = listOf(
+        "Gemini 3.8 Flash (High)",
+        "Gemini 3.8 Flash (Medium)",
+        "Gemini 3.7 Flash (High)",
+        "Gemini 3.1 Pro (High)",
+        "Claude Sonnet 4.6 (Thinking)"
     )
+
+    private val _selectedModel = MutableStateFlow("Gemini 3.8 Flash (High)")
+    val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
+
+    fun selectModel(model: String) {
+        _selectedModel.value = model
+    }
+
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
     private val _promptText = MutableStateFlow("")
@@ -129,6 +137,22 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         authManager.startAuthSession(agyExe, bootstrapManager.getEnvironmentVariables())
     }
 
+    fun dismissAuthErrors() {
+        _messages.value = _messages.value.filterNot { msg ->
+            msg.role == MessageRole.ERROR && (
+                msg.content.contains("authentication required", ignoreCase = true) ||
+                msg.content.contains("Run 'libagy.so' to log in", ignoreCase = true) ||
+                msg.content.contains("Engine Authentication Required", ignoreCase = true) ||
+                msg.content.contains("authentication failed", ignoreCase = true)
+            )
+        }
+    }
+
+    fun clearChat() {
+        _messages.value = emptyList()
+        activeConversationId = null
+    }
+
     fun submitAuthCode(code: String) {
         viewModelScope.launch {
             val trimmed = code.trim()
@@ -140,10 +164,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
             val success = authManager.submitAuthCode(trimmed, agyExe, env)
             if (success) {
+                dismissAuthErrors()
                 _showAuthSheet.value = false
+                val email = authManager.authState.value.userEmail ?: "Google Account"
                 _messages.value = _messages.value + ChatMessage(
-                    role = MessageRole.ASSISTANT,
-                    content = "Successfully authenticated as ${authManager.authState.value.userEmail ?: "Google Account"}. Antigravity agent is ready!"
+                    role = MessageRole.SYSTEM,
+                    content = "Authenticated as $email • Engine Ready"
                 )
             }
         }
@@ -152,10 +178,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun importCredentials(json: String) {
         val success = authManager.importCredentials(json)
         if (success) {
+            dismissAuthErrors()
             _showAuthSheet.value = false
+            val email = authManager.authState.value.userEmail ?: "Google Account"
             _messages.value = _messages.value + ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = "Credentials successfully imported. Authenticated as ${authManager.authState.value.userEmail ?: "Google Account"}."
+                role = MessageRole.SYSTEM,
+                content = "Credentials imported for $email"
             )
         }
     }
@@ -163,10 +191,11 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun saveApiKey(key: String) {
         val success = authManager.saveApiKey(key)
         if (success) {
+            dismissAuthErrors()
             _showAuthSheet.value = false
             _messages.value = _messages.value + ChatMessage(
-                role = MessageRole.ASSISTANT,
-                content = "Gemini API Key activated successfully! Native Antigravity agent is ready."
+                role = MessageRole.SYSTEM,
+                content = "Gemini API Key activated • Native Agent Ready"
             )
         }
     }
@@ -174,8 +203,8 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun signOut() {
         authManager.signOut()
         _messages.value = _messages.value + ChatMessage(
-            role = MessageRole.ASSISTANT,
-            content = "Signed out of Google Account. Please sign in again to run Antigravity agent."
+            role = MessageRole.SYSTEM,
+            content = "Signed out of Google Account"
         )
     }
 
@@ -207,7 +236,8 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                 prompt = text,
                 conversationId = activeConversationId,
                 autonomous = _isAutonomous.value,
-                workspaceDir = _workspaceInfo.value.currentPath
+                workspaceDir = _workspaceInfo.value.currentPath,
+                model = _selectedModel.value
             )
 
             engine.startTurn(agyExe, request, env)

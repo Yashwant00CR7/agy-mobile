@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
                 val isVoiceRecording by viewModel.isVoiceRecording.collectAsState()
                 val authState by viewModel.authState.collectAsState()
                 val showAuthSheet by viewModel.showAuthSheet.collectAsState()
+                val selectedModel by viewModel.selectedModel.collectAsState()
 
                 var showWorkspaceSheet by remember { mutableStateOf(false) }
 
@@ -90,7 +91,10 @@ class MainActivity : ComponentActivity() {
                     onVoiceClick = { toggleVoiceDictation() },
                     isVoiceRecording = isVoiceRecording,
                     authState = authState,
-                    onOpenAuth = { viewModel.openAuthSheet() }
+                    onOpenAuth = { viewModel.openAuthSheet() },
+                    selectedModel = selectedModel,
+                    onSelectModel = { viewModel.selectModel(it) },
+                    onClearChat = { viewModel.clearChat() }
                 )
 
                 if (showAuthSheet) {

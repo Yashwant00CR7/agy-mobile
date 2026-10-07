@@ -16,7 +16,8 @@ enum class MessageRole {
     TOOL,
     APPROVAL,
     DIFF,
-    ERROR
+    ERROR,
+    SYSTEM
 }
 
 data class ChatMessage(

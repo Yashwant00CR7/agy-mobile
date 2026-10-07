@@ -14,10 +14,26 @@ class BootstrapManager(
     val defaultWorkspaceDir: File = File(baseDir, "workspaces")
 
     fun initializeDirectories(): Boolean {
-        return binDir.mkdirs() or
+        val created = binDir.mkdirs() or
                 homeDir.mkdirs() or
                 tmpDir.mkdirs() or
-                defaultWorkspaceDir.mkdirs()
+                defaultWorkspaceDir.mkdirs() or
+                geminiDir.mkdirs() or
+                agyCliDir.mkdirs()
+
+        // Ensure default settings.json exists with standard plan model
+        val cliSettings = getAgyCliSettingsFile()
+        if (!cliSettings.exists()) {
+            try {
+                val defaultSettings = org.json.JSONObject().apply {
+                    put("model", "Gemini 3.8 Flash (High)")
+                    put("agentMode", "accept-edits")
+                }
+                cliSettings.writeText(defaultSettings.toString(2))
+                getSettingsFile().writeText(defaultSettings.toString(2))
+            } catch (_: Exception) {}
+        }
+        return created
     }
 
     fun installBinary(name: String, inputStream: InputStream): File {
@@ -144,6 +160,7 @@ class BootstrapManager(
             // libagy.so requires modelProvider: "gemini" in settings.json to bypass OAuth
             val settingsJson = org.json.JSONObject()
             settingsJson.put("modelProvider", "gemini")
+            settingsJson.put("model", "Gemini 3.8 Flash (High)")
             getSettingsFile().writeText(settingsJson.toString(2))
             getAgyCliSettingsFile().writeText(settingsJson.toString(2))
             true
@@ -234,6 +251,8 @@ class BootstrapManager(
             auth.put("selectedType", "oauth-personal")
             sec.put("auth", auth)
             settingsJson.put("security", sec)
+            settingsJson.put("model", "Gemini 3.8 Flash (High)")
+            settingsJson.put("agentMode", "accept-edits")
             getSettingsFile().writeText(settingsJson.toString(2))
             getAgyCliSettingsFile().writeText(settingsJson.toString(2))
 

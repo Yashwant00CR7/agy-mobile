@@ -237,9 +237,13 @@ class AgyProcessEngine(
                 args.add(request.conversationId)
             }
 
-            if (!request.model.isNullOrBlank()) {
-                args.add("--model")
-                args.add(request.model)
+            val modelName = request.model?.takeIf { it.isNotBlank() } ?: "Gemini 3.8 Flash (High)"
+            args.add("--model")
+            args.add(modelName)
+
+            if (!request.effort.isNullOrBlank()) {
+                args.add("--effort")
+                args.add(request.effort)
             }
 
             val processBuilder = ProcessBuilder(args)
@@ -287,8 +291,9 @@ class AgyProcessEngine(
                     _status.value = AgentStatus.IDLE
                     _events.emit(AgyEvent.Status(AgentStatus.IDLE))
                 } else {
-                    val errText = errorBuffer.toString().trim()
-                    _events.emit(AgyEvent.Error(errText.ifBlank { "agy exited with code $exitCode" }))
+                    val rawErr = errorBuffer.toString().trim()
+                    val cleanErr = parseAgyErrorMessage(rawErr, exitCode)
+                    _events.emit(AgyEvent.Error(cleanErr))
                     _status.value = AgentStatus.ERROR
                     _events.emit(AgyEvent.Status(AgentStatus.ERROR, "Process exited with code $exitCode"))
                 }
@@ -330,5 +335,34 @@ class AgyProcessEngine(
             _events.emit(AgyEvent.Status(AgentStatus.IDLE, "Turn cancelled"))
         }
         return true
+    }
+
+    companion object {
+        fun parseAgyErrorMessage(raw: String, exitCode: Int): String {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return "Process exited with code $exitCode"
+
+            // Check if JSON error is inside AGY_ERROR:
+            val agyErrorPrefix = "AGY_ERROR: "
+            val idx = trimmed.indexOf(agyErrorPrefix)
+            if (idx != -1) {
+                val jsonStr = trimmed.substring(idx + agyErrorPrefix.length).trim()
+                try {
+                    val obj = org.json.JSONObject(jsonStr)
+                    val shortErr = obj.optString("short_error", "")
+                    if (shortErr.isNotBlank()) return shortErr
+                } catch (_: Exception) {}
+            }
+
+            // Check for 'error: ' prefix in first line
+            for (line in trimmed.lines()) {
+                val lineTrimmed = line.trim()
+                if (lineTrimmed.startsWith("error:", ignoreCase = true)) {
+                    return lineTrimmed.removePrefix("error:").removePrefix("ERROR:").trim()
+                }
+            }
+
+            return trimmed
+        }
     }
 }

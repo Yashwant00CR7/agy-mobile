@@ -44,8 +44,8 @@ fun InputBar(
         "git status",
         "review current diffs",
         "run project tests",
-        "Explain architecture",
-        "Fix current errors"
+        "explain architecture",
+        "fix current issues"
     )
 
     Column(
@@ -105,7 +105,7 @@ fun InputBar(
             OutlinedTextField(
                 value = promptText,
                 onValueChange = onPromptChange,
-                placeholder = { Text("Ask agy anything...", color = TextMuted, fontSize = 14.sp) },
+                placeholder = { Text("Ask Antigravity anything...", color = TextMuted, fontSize = 14.sp) },
                 maxLines = 4,
                 modifier = Modifier
                     .weight(1f)
