@@ -42,6 +42,8 @@ class BootstrapManager(
                 file.writeText(json.toString(2))
             }
         } catch (_: Exception) {}
+
+        syncExistingCredentials()
         return created
     }
 
@@ -118,7 +120,10 @@ class BootstrapManager(
             "TMPDIR" to tmpDir.absolutePath,
             "TERM" to "xterm-256color",
             "PAGER" to "cat",
-            "COLORTERM" to "truecolor"
+            "COLORTERM" to "truecolor",
+            "ANTIGRAVITY_EXECUTABLE_DATA_DIR" to geminiDir.absolutePath,
+            "XDG_CONFIG_HOME" to File(homeDir, ".config").absolutePath,
+            "XDG_CACHE_HOME" to File(homeDir, ".cache").absolutePath
         )
 
         if (nativeLibDir != null) {
@@ -128,6 +133,7 @@ class BootstrapManager(
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) {
             env["GEMINI_API_KEY"] = apiKey
+            env["GOOGLE_API_KEY"] = apiKey
         } else {
             val adcFile = getAdcFile()
             if (adcFile.exists() && adcFile.length() > 0) {
@@ -149,6 +155,17 @@ class BootstrapManager(
     fun getApiKeyFile(): File = File(geminiDir, "api_key.txt")
     fun getAdcFile(): File = File(geminiDir, "application_default_credentials.json")
     fun getGcloudAdcFile(): File = File(gcloudDir, "application_default_credentials.json")
+
+    // Standalone & CLI token storage paths searched by libagy.so
+    fun getJetskiStandaloneOauthTokenFile(): File = File(geminiDir, "jetski-standalone-oauth-token")
+    fun getAntigravityOauthTokenFile(): File = File(geminiDir, "antigravity-oauth-token")
+    fun getCliAntigravityOauthTokenFile(): File = File(agyCliDir, "antigravity-oauth-token")
+    fun getAntigravitySubdirOauthTokenFile(): File = File(File(geminiDir, "antigravity"), "antigravity-oauth-token")
+
+    // Keyring-unavailable marker paths that cause libagy.so to bypass DBus keyring on Android
+    fun getKeyringMarkerFile(): File = File(File(geminiDir, "cache"), "antigravity-keyring-unavailable")
+    fun getCliKeyringMarkerFile(): File = File(File(agyCliDir, "cache"), "antigravity-keyring-unavailable")
+    fun getJetskiKeyringMarkerFile(): File = File(File(geminiDir, "cache"), "jetski-keyring-unavailable")
 
     fun getSelectedModel(): String {
         val cliSettings = getAgyCliSettingsFile()
@@ -228,19 +245,55 @@ class BootstrapManager(
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) return true
 
-        // 2. Google ADC mode
-        val adc = getAdcFile()
-        if (adc.exists() && adc.length() > 0) return true
-
-        // 3. Google OAuth creds mode
-        val creds = getOauthCredsFile()
-        return creds.exists() && creds.length() > 0
+        // 2. Real libagy token files
+        val tokenFiles = listOf(
+            getAntigravityOauthTokenFile(),
+            getJetskiStandaloneOauthTokenFile(),
+            getCliAntigravityOauthTokenFile(),
+            getAdcFile(),
+            getOauthCredsFile()
+        )
+        return tokenFiles.any { it.exists() && it.length() > 0 }
     }
 
     fun getAuthAccount(): String? {
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) {
             return "Gemini API (Active)"
+        }
+
+        // Try extracting from StoredToken files or legacy creds
+        val tokenFiles = listOf(
+            getAntigravityOauthTokenFile(),
+            getCliAntigravityOauthTokenFile(),
+            getJetskiStandaloneOauthTokenFile(),
+            getOauthCredsFile()
+        )
+        for (f in tokenFiles) {
+            if (f.exists()) {
+                try {
+                    val json = org.json.JSONObject(f.readText())
+                    val idToken = if (json.has("id_token")) {
+                        json.optString("id_token")
+                    } else if (json.has("token") && json.optJSONObject("token")?.has("id_token") == true) {
+                        json.getJSONObject("token").optString("id_token")
+                    } else null
+
+                    if (!idToken.isNullOrBlank()) {
+                        val parts = idToken.split(".")
+                        if (parts.size >= 2) {
+                            val decodedBytes = try {
+                                java.util.Base64.getUrlDecoder().decode(parts[1])
+                            } catch (_: Exception) {
+                                java.util.Base64.getDecoder().decode(parts[1])
+                            }
+                            val jwtJson = org.json.JSONObject(String(decodedBytes))
+                            val email = jwtJson.optString("email", "")
+                            if (email.isNotBlank()) return email
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
         }
 
         val adcFile = getAdcFile()
@@ -261,29 +314,6 @@ class BootstrapManager(
             } catch (_: Exception) {}
         }
 
-        val credsFile = getOauthCredsFile()
-        if (credsFile.exists()) {
-            try {
-                val json = org.json.JSONObject(credsFile.readText())
-                if (json.has("id_token")) {
-                    val idToken = json.getString("id_token")
-                    val parts = idToken.split(".")
-                    if (parts.size >= 2) {
-                        val base64Part = parts[1]
-                        val decodedBytes = try {
-                            java.util.Base64.getUrlDecoder().decode(base64Part)
-                        } catch (_: Exception) {
-                            java.util.Base64.getDecoder().decode(base64Part)
-                        }
-                        val payload = String(decodedBytes)
-                        val jwtJson = org.json.JSONObject(payload)
-                        val email = jwtJson.optString("email", "")
-                        if (email.isNotBlank()) return email
-                    }
-                }
-            } catch (_: Exception) {}
-        }
-
         return null
     }
 
@@ -292,34 +322,36 @@ class BootstrapManager(
             geminiDir.mkdirs()
             agyCliDir.mkdirs()
             gcloudDir.mkdirs()
-            getOauthCredsFile().writeText(oauthJson.trim())
+            File(geminiDir, "cache").mkdirs()
+            File(agyCliDir, "cache").mkdirs()
+            File(geminiDir, "antigravity").mkdirs()
 
-            // Clear any lingering API key file so settings.json switches back to OAuth
-            val keyFile = getApiKeyFile()
-            if (keyFile.exists()) keyFile.delete()
-
-            // To switch back to signing in, configure OAuth in settings.json in both locations
-            val settingsJson = org.json.JSONObject()
-            val sec = org.json.JSONObject()
-            val auth = org.json.JSONObject()
-            auth.put("selectedType", "oauth-personal")
-            sec.put("auth", auth)
-            settingsJson.put("security", sec)
-            settingsJson.put("model", "Gemini 3.8 Flash (High)")
-            settingsJson.put("agentMode", "accept-edits")
-            getSettingsFile().writeText(settingsJson.toString(2))
-            getAgyCliSettingsFile().writeText(settingsJson.toString(2))
-
-            // Parse OAuth tokens to construct standard Google ADC format for libagy.so
+            // 1. Parse incoming JSON to extract tokens
+            var accessToken: String? = null
             var refreshToken: String? = null
+            var idToken: String? = null
+            var tokenType: String = "Bearer"
+            var expiresInSeconds: Long = 3600
             var userEmail = email
+
             try {
-                val parsed = org.json.JSONObject(oauthJson)
-                if (parsed.has("refresh_token") && parsed.getString("refresh_token").isNotBlank()) {
-                    refreshToken = parsed.getString("refresh_token")
+                val parsed = org.json.JSONObject(oauthJson.trim())
+                val tokenObj = if (parsed.has("token") && parsed.optJSONObject("token") != null) {
+                    parsed.getJSONObject("token")
+                } else {
+                    parsed
                 }
-                if (userEmail == null && parsed.has("id_token")) {
-                    val idToken = parsed.getString("id_token")
+
+                if (tokenObj.has("access_token")) accessToken = tokenObj.optString("access_token")
+                if (tokenObj.has("refresh_token")) refreshToken = tokenObj.optString("refresh_token")
+                if (tokenObj.has("token_type")) tokenType = tokenObj.optString("token_type", "Bearer")
+                if (tokenObj.has("expires_in")) expiresInSeconds = tokenObj.optLong("expires_in", 3600)
+
+                if (parsed.has("id_token")) idToken = parsed.optString("id_token")
+                else if (tokenObj.has("id_token")) idToken = tokenObj.optString("id_token")
+
+                // Extract email from id_token if not provided
+                if (userEmail == null && !idToken.isNullOrBlank()) {
                     val parts = idToken.split(".")
                     if (parts.size >= 2) {
                         val decodedBytes = try {
@@ -328,23 +360,95 @@ class BootstrapManager(
                             java.util.Base64.getDecoder().decode(parts[1])
                         }
                         val jwtJson = org.json.JSONObject(String(decodedBytes))
-                        userEmail = if (jwtJson.has("email")) jwtJson.getString("email") else null
+                        val extractedEmail = jwtJson.optString("email", "")
+                        if (extractedEmail.isNotBlank()) {
+                            userEmail = extractedEmail
+                        }
                     }
                 }
             } catch (_: Exception) {}
 
             // Preserve old refresh_token if new response omitted it
-            if (refreshToken == null && getAdcFile().exists()) {
-                try {
-                    val oldAdc = org.json.JSONObject(getAdcFile().readText())
-                    if (oldAdc.has("refresh_token")) {
-                        refreshToken = oldAdc.getString("refresh_token")
-                    }
-                } catch (_: Exception) {}
+            if (refreshToken.isNullOrBlank()) {
+                val oldAdc = getAdcFile()
+                if (oldAdc.exists()) {
+                    try {
+                        val oldAdcJson = org.json.JSONObject(oldAdc.readText())
+                        if (oldAdcJson.has("refresh_token")) {
+                            refreshToken = oldAdcJson.optString("refresh_token")
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            if (refreshToken.isNullOrBlank()) {
+                val oldToken = getAntigravityOauthTokenFile()
+                if (oldToken.exists()) {
+                    try {
+                        val oldObj = org.json.JSONObject(oldToken.readText())
+                        val oldTok = oldObj.optJSONObject("token")
+                        if (oldTok != null && oldTok.has("refresh_token")) {
+                            refreshToken = oldTok.optString("refresh_token")
+                        }
+                    } catch (_: Exception) {}
+                }
             }
 
             val targetEmail = userEmail ?: getAuthAccount()
 
+            // ISO 8601 / RFC 3339 expiry string for Go's time.Time parser
+            val expiryIso = java.time.format.DateTimeFormatter.ISO_INSTANT.format(
+                java.time.Instant.now().plusSeconds(expiresInSeconds)
+            )
+
+            // Construct exact Go codeassistclient.StoredToken JSON schema
+            val storedTokenJson = org.json.JSONObject().apply {
+                val tokObj = org.json.JSONObject().apply {
+                    put("access_token", accessToken ?: "")
+                    put("token_type", tokenType)
+                    if (!refreshToken.isNullOrBlank()) {
+                        put("refresh_token", refreshToken)
+                    }
+                    put("expiry", expiryIso)
+                }
+                put("token", tokObj)
+                put("auth_method", "consumer")
+                if (!idToken.isNullOrBlank()) {
+                    put("id_token", idToken)
+                }
+            }
+            val storedTokenContent = storedTokenJson.toString(2)
+
+            // Write to ALL locations searched by libagy.so
+            getJetskiStandaloneOauthTokenFile().writeText(storedTokenContent)
+            getAntigravityOauthTokenFile().writeText(storedTokenContent)
+            getCliAntigravityOauthTokenFile().writeText(storedTokenContent)
+            getAntigravitySubdirOauthTokenFile().writeText(storedTokenContent)
+
+            // Write keyring-unavailable marker files so libagy.so immediately uses file storage
+            getKeyringMarkerFile().writeText("1")
+            getCliKeyringMarkerFile().writeText("1")
+            getJetskiKeyringMarkerFile().writeText("1")
+
+            // Write legacy/fallback files
+            getOauthCredsFile().writeText(oauthJson.trim())
+            File(agyCliDir, "oauth_creds.json").writeText(oauthJson.trim())
+            File(agyCliDir, "auth.json").writeText(oauthJson.trim())
+            File(agyCliDir, "token.json").writeText(storedTokenContent)
+
+            // Clear any lingering API key file so settings switches back to OAuth
+            val keyFile = getApiKeyFile()
+            if (keyFile.exists()) keyFile.delete()
+
+            // Write settings.json
+            val modelSlug = getSelectedModel()
+            val settingsJson = org.json.JSONObject().apply {
+                put("agentMode", "accept-edits")
+                put("model", modelSlug)
+            }
+            getSettingsFile().writeText(settingsJson.toString(2))
+            getAgyCliSettingsFile().writeText(settingsJson.toString(2))
+
+            // Write ADC files
             if (!refreshToken.isNullOrBlank()) {
                 val adcJson = org.json.JSONObject().apply {
                     put("client_id", AuthManager.CLIENT_ID)
@@ -360,11 +464,12 @@ class BootstrapManager(
                 getGcloudAdcFile().writeText(adcContent)
             }
 
-            // Google accounts file
+            // Write Google accounts file
             if (!targetEmail.isNullOrBlank()) {
-                val accountsJson = org.json.JSONObject()
-                accountsJson.put("active", targetEmail)
-                accountsJson.put("old", org.json.JSONArray())
+                val accountsJson = org.json.JSONObject().apply {
+                    put("active", targetEmail)
+                    put("old", org.json.JSONArray())
+                }
                 getGoogleAccountsFile().writeText(accountsJson.toString(2))
             }
 
@@ -374,27 +479,57 @@ class BootstrapManager(
         }
     }
 
+    fun syncExistingCredentials() {
+        try {
+            // If already has antigravity-oauth-token and marker, nothing to do
+            if (getAntigravityOauthTokenFile().exists() && getKeyringMarkerFile().exists()) {
+                return
+            }
+
+            // If oauth_creds.json exists, migrate it
+            val credsFile = getOauthCredsFile()
+            if (credsFile.exists() && credsFile.length() > 0) {
+                val content = credsFile.readText().trim()
+                if (content.isNotBlank()) {
+                    writeCredentials(content)
+                    return
+                }
+            }
+
+            // If ADC file exists, migrate it
+            val adcFile = getAdcFile()
+            if (adcFile.exists() && adcFile.length() > 0) {
+                val content = adcFile.readText().trim()
+                if (content.isNotBlank()) {
+                    writeCredentials(content)
+                }
+            }
+        } catch (_: Exception) {}
+    }
+
     fun clearAuth(): Boolean {
         var success = true
-        val creds = getOauthCredsFile()
-        if (creds.exists()) {
-            success = success && creds.delete()
-        }
-        val adc = getAdcFile()
-        if (adc.exists()) {
-            success = success && adc.delete()
-        }
-        val gcloudAdc = getGcloudAdcFile()
-        if (gcloudAdc.exists()) {
-            success = success && gcloudAdc.delete()
-        }
-        val accounts = getGoogleAccountsFile()
-        if (accounts.exists()) {
-            accounts.delete()
-        }
-        val keyFile = getApiKeyFile()
-        if (keyFile.exists()) {
-            keyFile.delete()
+        val filesToDelete = listOf(
+            getOauthCredsFile(),
+            File(agyCliDir, "oauth_creds.json"),
+            File(agyCliDir, "auth.json"),
+            File(agyCliDir, "token.json"),
+            getJetskiStandaloneOauthTokenFile(),
+            getAntigravityOauthTokenFile(),
+            getCliAntigravityOauthTokenFile(),
+            getAntigravitySubdirOauthTokenFile(),
+            getKeyringMarkerFile(),
+            getCliKeyringMarkerFile(),
+            getJetskiKeyringMarkerFile(),
+            getAdcFile(),
+            getGcloudAdcFile(),
+            getGoogleAccountsFile(),
+            getApiKeyFile()
+        )
+        for (f in filesToDelete) {
+            if (f.exists()) {
+                success = success && f.delete()
+            }
         }
         val settings = getSettingsFile()
         if (settings.exists()) {
@@ -417,11 +552,12 @@ class BootstrapManager(
             return when {
                 s.contains("3.8 Flash (Medium)", ignoreCase = true) || s == "gemini-3.8-flash-medium" -> "gemini-3.8-flash-medium"
                 s.contains("3.8 Flash (Low)", ignoreCase = true) || s == "gemini-3.8-flash-low" -> "gemini-3.8-flash-low"
-                s.contains("3.7 Flash (High)", ignoreCase = true) || s == "gemini-3.7-flash-high" -> "gemini-3.7-flash-high"
+                s.contains("3.8 Flash", ignoreCase = true) || s == "gemini-3.8-flash-high" -> "gemini-3.8-flash-high"
                 s.contains("3.7 Flash (Medium)", ignoreCase = true) || s == "gemini-3.7-flash-medium" -> "gemini-3.7-flash-medium"
                 s.contains("3.7 Flash (Low)", ignoreCase = true) || s == "gemini-3.7-flash-low" -> "gemini-3.7-flash-low"
-                s.contains("3.6 Flash (High)", ignoreCase = true) || s == "gemini-3.6-flash-high" -> "gemini-3.6-flash-high"
-                s.contains("3.1 Pro (High)", ignoreCase = true) || s == "gemini-3.1-pro-high" -> "gemini-3.1-pro-high"
+                s.contains("3.7 Flash", ignoreCase = true) || s == "gemini-3.7-flash-high" -> "gemini-3.7-flash-high"
+                s.contains("3.6 Flash", ignoreCase = true) || s == "gemini-3.6-flash-high" -> "gemini-3.6-flash-high"
+                s.contains("3.1 Pro", ignoreCase = true) || s.contains("3.1-pro", ignoreCase = true) -> "gemini-3.1-pro-high"
                 s.contains("Claude Sonnet 4.6", ignoreCase = true) || s == "claude-sonnet-4-6" -> "claude-sonnet-4-6"
                 s.contains("Claude Opus 4.6", ignoreCase = true) || s == "claude-opus-4-6-thinking" -> "claude-opus-4-6-thinking"
                 s.contains("GPT-OSS 120B", ignoreCase = true) || s == "gpt-oss-120b-medium" -> "gpt-oss-120b-medium"
@@ -431,18 +567,18 @@ class BootstrapManager(
 
         fun toDisplayName(slugOrId: String?): String {
             val s = slugOrId?.trim() ?: return "Gemini 3.8 Flash (High)"
-            return when (s) {
-                "gemini-3.8-flash-high" -> "Gemini 3.8 Flash (High)"
-                "gemini-3.8-flash-medium" -> "Gemini 3.8 Flash (Medium)"
-                "gemini-3.8-flash-low" -> "Gemini 3.8 Flash (Low)"
-                "gemini-3.7-flash-high" -> "Gemini 3.7 Flash (High)"
-                "gemini-3.7-flash-medium" -> "Gemini 3.7 Flash (Medium)"
-                "gemini-3.7-flash-low" -> "Gemini 3.7 Flash (Low)"
-                "gemini-3.6-flash-high" -> "Gemini 3.6 Flash (High)"
-                "gemini-3.1-pro-high" -> "Gemini 3.1 Pro (High)"
-                "claude-sonnet-4-6" -> "Claude Sonnet 4.6 (Thinking)"
-                "claude-opus-4-6-thinking" -> "Claude Opus 4.6 (Thinking)"
-                "gpt-oss-120b-medium" -> "GPT-OSS 120B (Medium)"
+            return when {
+                s == "gemini-3.8-flash-high" || s.equals("Gemini 3.8 Flash (High)", ignoreCase = true) -> "Gemini 3.8 Flash (High)"
+                s == "gemini-3.8-flash-medium" || s.equals("Gemini 3.8 Flash (Medium)", ignoreCase = true) -> "Gemini 3.8 Flash (Medium)"
+                s == "gemini-3.8-flash-low" || s.equals("Gemini 3.8 Flash (Low)", ignoreCase = true) -> "Gemini 3.8 Flash (Low)"
+                s == "gemini-3.7-flash-high" || s.equals("Gemini 3.7 Flash (High)", ignoreCase = true) -> "Gemini 3.7 Flash (High)"
+                s == "gemini-3.7-flash-medium" || s.equals("Gemini 3.7 Flash (Medium)", ignoreCase = true) -> "Gemini 3.7 Flash (Medium)"
+                s == "gemini-3.7-flash-low" || s.equals("Gemini 3.7 Flash (Low)", ignoreCase = true) -> "Gemini 3.7 Flash (Low)"
+                s == "gemini-3.6-flash-high" || s.equals("Gemini 3.6 Flash (High)", ignoreCase = true) -> "Gemini 3.6 Flash (High)"
+                s == "gemini-3.1-pro-high" || s.contains("3.1 Pro", ignoreCase = true) || s.contains("3.1-pro", ignoreCase = true) -> "Gemini 3.1 Pro (High)"
+                s == "claude-sonnet-4-6" || s.contains("Claude Sonnet 4.6", ignoreCase = true) -> "Claude Sonnet 4.6 (Thinking)"
+                s == "claude-opus-4-6-thinking" || s.contains("Claude Opus 4.6", ignoreCase = true) -> "Claude Opus 4.6 (Thinking)"
+                s == "gpt-oss-120b-medium" || s.contains("GPT-OSS 120B", ignoreCase = true) -> "GPT-OSS 120B (Medium)"
                 else -> if (s.contains("(")) s else "Gemini 3.8 Flash (High)"
             }
         }

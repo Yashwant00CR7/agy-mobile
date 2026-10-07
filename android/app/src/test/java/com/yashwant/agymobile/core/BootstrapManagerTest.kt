@@ -95,15 +95,28 @@ class BootstrapManagerTest {
         assertTrue(manager.getAgyCliSettingsFile().exists())
         assertTrue(manager.getAdcFile().exists())
         assertTrue(manager.getGcloudAdcFile().exists())
+        assertTrue(manager.getAntigravityOauthTokenFile().exists())
+        assertTrue(manager.getJetskiStandaloneOauthTokenFile().exists())
+        assertTrue(manager.getCliAntigravityOauthTokenFile().exists())
+        assertTrue(manager.getKeyringMarkerFile().exists())
+
+        val storedJson = org.json.JSONObject(manager.getAntigravityOauthTokenFile().readText())
+        assertTrue(storedJson.has("token"))
+        assertEquals("ya29.sample", storedJson.getJSONObject("token").getString("access_token"))
+        assertEquals("1//sample_refresh", storedJson.getJSONObject("token").getString("refresh_token"))
+        assertEquals("consumer", storedJson.getString("auth_method"))
 
         val adcEnv = manager.getEnvironmentVariables()
         assertFalse(adcEnv.containsKey("AGY_ADC_AUTH"))
         assertEquals(manager.getAdcFile().absolutePath, adcEnv["GOOGLE_APPLICATION_CREDENTIALS"])
+        assertEquals(manager.geminiDir.absolutePath, adcEnv["ANTIGRAVITY_EXECUTABLE_DATA_DIR"])
 
         assertTrue(manager.clearAuth())
         assertFalse(manager.isLoggedIn())
         assertNull(manager.getAuthAccount())
         assertFalse(manager.getAdcFile().exists())
+        assertFalse(manager.getAntigravityOauthTokenFile().exists())
+        assertFalse(manager.getKeyringMarkerFile().exists())
     }
 
     @Test
@@ -122,6 +135,14 @@ class BootstrapManagerTest {
         assertTrue(manager.saveSelectedModel("Claude Sonnet 4.6 (Thinking)"))
         assertEquals("claude-sonnet-4-6", manager.getSelectedModel())
         assertEquals("Claude Sonnet 4.6 (Thinking)", manager.getSelectedModelDisplayName())
+
+        assertTrue(manager.saveSelectedModel("Gemini 3.1 Pro"))
+        assertEquals("gemini-3.1-pro-high", manager.getSelectedModel())
+        assertEquals("Gemini 3.1 Pro (High)", manager.getSelectedModelDisplayName())
+
+        assertTrue(manager.saveSelectedModel("3.1 Pro"))
+        assertEquals("gemini-3.1-pro-high", manager.getSelectedModel())
+        assertEquals("Gemini 3.1 Pro (High)", manager.getSelectedModelDisplayName())
     }
 
     @Test
