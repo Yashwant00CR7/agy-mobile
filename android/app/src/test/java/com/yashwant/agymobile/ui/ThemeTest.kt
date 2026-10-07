@@ -24,4 +24,12 @@ class ThemeTest {
         assertEquals(0xE5, (ElectricCyan.green * 255).toInt())
         assertEquals(0xFF, (ElectricCyan.blue * 255).toInt())
     }
+
+    @Test
+    fun testAgyIcons() {
+        assertNotNull(com.yashwant.agymobile.ui.theme.AgyIcons.Logo)
+        assertNotNull(com.yashwant.agymobile.ui.theme.AgyIcons.TerminalSpark)
+        assertNotNull(com.yashwant.agymobile.ui.theme.AgyIcons.SendPlane)
+        assertNotNull(com.yashwant.agymobile.ui.theme.AgyIcons.CyberKey)
+    }
 }

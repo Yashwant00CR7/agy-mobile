@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,7 +71,7 @@ fun ChatScreen(
                     .fillMaxWidth()
                     .background(ObsidianSurface)
                     .statusBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -78,10 +81,27 @@ fun ChatScreen(
                         onClick = onOpenMenu,
                         modifier = Modifier
                             .size(38.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(10.dp))
                             .background(ObsidianElevated)
                     ) {
                         Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu", tint = TextPrimary)
+                    }
+
+                    // Antigravity Brand Logo Mark
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(ObsidianBlack)
+                            .border(1.dp, HairlineBorder, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = AgyIcons.Logo,
+                            contentDescription = "Antigravity",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
 
                     Column {
@@ -91,11 +111,23 @@ fun ChatScreen(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
-                        Text(
-                            text = gitBranch?.let { "git: $it" } ?: "no git",
-                            color = ElectricCyan,
-                            fontSize = 11.sp
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(if (gitBranch != null) ElectricCyan else EmeraldSuccess)
+                            )
+                            Text(
+                                text = gitBranch?.let { "🌿 $it" } ?: "⚡ libagy • ready",
+                                color = if (gitBranch != null) ElectricCyan else EmeraldSuccess,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
@@ -111,7 +143,7 @@ fun ChatScreen(
                                 .background(AmberGlow)
                                 .border(1.dp, AmberWarning, RoundedCornerShape(16.dp))
                                 .clickable { onOpenAuth() }
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 9.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "Sign In",
@@ -187,88 +219,179 @@ fun ChatScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-            items(messages, key = { it.id }) { msg ->
-                when (msg.role) {
-                    MessageRole.USER -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterEnd
-                        ) {
+                items(messages, key = { it.id }) { msg ->
+                    when (msg.role) {
+                        MessageRole.USER -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.85f)
-                                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp))
-                                    .background(
-                                        Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1D4ED8)))
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterEnd
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.85f)
+                                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp))
+                                        .background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF3B0764), Color(0xFF1E1B4B))
+                                            )
+                                        )
+                                        .border(
+                                            1.dp,
+                                            AntigravityViolet.copy(alpha = 0.5f),
+                                            RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+                                        )
+                                        .padding(14.dp)
+                                ) {
+                                    Text(
+                                        text = msg.content,
+                                        color = Color(0xFFF1F5F9),
+                                        fontSize = 14.sp,
+                                        lineHeight = 20.sp
                                     )
-                                    .padding(12.dp)
-                            ) {
-                                Text(text = msg.content, color = Color.White, fontSize = 14.sp)
+                                }
                             }
                         }
-                    }
 
-                    MessageRole.ASSISTANT -> {
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
+                        MessageRole.ASSISTANT -> {
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.92f)
-                                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
-                                    .background(ObsidianSurface)
-                                    .border(1.dp, ObsidianBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
-                                    .padding(12.dp)
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Text(text = msg.content, color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(0.92f)
+                                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
+                                        .background(ObsidianSurface)
+                                        .border(1.dp, ObsidianBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
+                                        .padding(14.dp)
+                                ) {
+                                    Text(text = msg.content, color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
+                                }
                             }
                         }
-                    }
 
-                    MessageRole.THOUGHT -> {
-                        ThoughtCard(thoughtText = msg.content)
-                    }
+                        MessageRole.THOUGHT -> {
+                            ThoughtCard(thoughtText = msg.content)
+                        }
 
-                    MessageRole.TOOL -> {
-                        ToolCallCard(
-                            toolName = msg.toolName ?: "action",
-                            argsJson = msg.toolArgs ?: msg.content
-                        )
-                    }
+                        MessageRole.TOOL -> {
+                            ToolCallCard(
+                                toolName = msg.toolName ?: "action",
+                                argsJson = msg.toolArgs ?: msg.content
+                            )
+                        }
 
-                    MessageRole.APPROVAL -> {
-                        ApprovalCard(
-                            toolName = msg.toolName ?: "Tool Execution",
-                            argsJson = msg.toolArgs ?: "{}",
-                            description = msg.content,
-                            onApprove = { onApprove(msg.toolCallId ?: "") },
-                            onDeny = { onDeny(msg.toolCallId ?: "") }
-                        )
-                    }
+                        MessageRole.APPROVAL -> {
+                            ApprovalCard(
+                                toolName = msg.toolName ?: "Tool Execution",
+                                argsJson = msg.toolArgs ?: "{}",
+                                description = msg.content,
+                                onApprove = { onApprove(msg.toolCallId ?: "") },
+                                onDeny = { onDeny(msg.toolCallId ?: "") }
+                            )
+                        }
 
-                    MessageRole.DIFF -> {
-                        DiffCard(
-                            fileName = msg.diffFile ?: "File Diff",
-                            diffText = msg.content
-                        )
-                    }
+                        MessageRole.DIFF -> {
+                            DiffCard(
+                                fileName = msg.diffFile ?: "File Diff",
+                                diffText = msg.content
+                            )
+                        }
 
-                    MessageRole.ERROR -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0x26EF4444))
-                                .border(1.dp, CrimsonDanger, RoundedCornerShape(8.dp))
-                                .padding(10.dp)
-                        ) {
-                            Text(text = "❌ ${msg.content}", color = CrimsonDanger, fontSize = 13.sp)
+                        MessageRole.ERROR -> {
+                            val isAuthError = msg.content.contains("authentication required", ignoreCase = true) ||
+                                    msg.content.contains("Run 'libagy.so' to log in", ignoreCase = true) ||
+                                    msg.content.contains("authentication failed", ignoreCase = true)
+
+                            if (isAuthError) {
+                                // Interactive Auth Action Card
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(1.dp, AmberWarning.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
+                                    colors = CardDefaults.cardColors(containerColor = ObsidianSurface)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.VpnKey,
+                                                contentDescription = "Auth Required",
+                                                tint = AmberWarning,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                            Text(
+                                                text = "Engine Authentication Required",
+                                                color = TextPrimary,
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Text(
+                                            text = "libagy needs active credentials to run agent turns and tool calls.",
+                                            color = TextSecondary,
+                                            fontSize = 12.sp,
+                                            lineHeight = 16.sp
+                                        )
+
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Button(
+                                                onClick = onOpenAuth,
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = ElectricCyan,
+                                                    contentColor = ObsidianBlack
+                                                ),
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text(text = "Sign In / Enter Key", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Standard Error Card
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0x1CEF4444))
+                                        .border(1.dp, CrimsonDanger.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.Top,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Warning,
+                                            contentDescription = "Error",
+                                            tint = CrimsonDanger,
+                                            modifier = Modifier.size(16.dp).padding(top = 2.dp)
+                                        )
+                                        Text(
+                                            text = msg.content,
+                                            color = CrimsonDanger,
+                                            fontSize = 12.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
-}
 }

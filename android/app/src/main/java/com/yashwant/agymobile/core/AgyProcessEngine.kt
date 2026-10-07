@@ -162,6 +162,10 @@ class AgyProcessEngine(
             }
         } catch (_: Exception) {
             // Non-JSON plaintext fallback
+            val authUrl = AuthManager.extractOAuthUrl(trimmed)
+            if (authUrl != null) {
+                return AgyEvent.AuthRequired(authUrl)
+            }
             return AgyEvent.Text("$trimmed\n")
         }
 

@@ -109,4 +109,18 @@ class AuthManagerTest {
         assertTrue(authManager.authState.value.isAuthenticating)
         assertEquals(url, authManager.authState.value.authUrl)
     }
+
+    @Test
+    fun testSaveApiKey() {
+        val root = tempFolder.newFolder("auth_test_api_key")
+        val bootstrapManager = BootstrapManager(root)
+        val authManager = AuthManager(bootstrapManager)
+
+        val saved = authManager.saveApiKey("AIzaSyTestApiKey")
+        assertTrue(saved)
+        assertTrue(authManager.authState.value.isAuthenticated)
+        assertTrue(bootstrapManager.isLoggedIn())
+        assertEquals("Gemini API (Active)", bootstrapManager.getAuthAccount())
+        assertEquals("AIzaSyTestApiKey", bootstrapManager.getApiKey())
+    }
 }

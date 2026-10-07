@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
                         onStartLogin = { viewModel.startLogin() },
                         onLaunchBrowser = { url -> BrowserHelper.openUrl(this@MainActivity, url) },
                         onSubmitCode = { code -> viewModel.submitAuthCode(code) },
+                        onSaveApiKey = { key -> viewModel.saveApiKey(key) },
                         onImportJson = { json -> viewModel.importCredentials(json) },
                         onSignOut = { viewModel.signOut() }
                     )

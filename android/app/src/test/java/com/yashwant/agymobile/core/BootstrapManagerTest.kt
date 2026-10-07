@@ -97,4 +97,26 @@ class BootstrapManagerTest {
         assertFalse(manager.isLoggedIn())
         assertNull(manager.getAuthAccount())
     }
+
+    @Test
+    fun testApiKeyManagement() {
+        val root = tempFolder.newFolder("app_files_apikey")
+        val manager = BootstrapManager(root)
+
+        assertFalse(manager.isLoggedIn())
+        assertNull(manager.getApiKey())
+
+        assertTrue(manager.saveApiKey("AIzaSyTest123"))
+        assertTrue(manager.isLoggedIn())
+        assertEquals("AIzaSyTest123", manager.getApiKey())
+        assertEquals("Gemini API (Active)", manager.getAuthAccount())
+        assertTrue(manager.getSettingsFile().readText().contains("gemini"))
+
+        val env = manager.getEnvironmentVariables()
+        assertEquals("AIzaSyTest123", env["GEMINI_API_KEY"])
+
+        assertTrue(manager.clearAuth())
+        assertFalse(manager.isLoggedIn())
+        assertNull(manager.getApiKey())
+    }
 }

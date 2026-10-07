@@ -53,13 +53,13 @@ fun ToolCallCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Code,
+                        imageVector = AgyIcons.TerminalSpark,
                         contentDescription = "Tool",
                         tint = ElectricCyan,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Tool: $toolName",
+                        text = ">_ $toolName",
                         color = ElectricCyan,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 13.sp,

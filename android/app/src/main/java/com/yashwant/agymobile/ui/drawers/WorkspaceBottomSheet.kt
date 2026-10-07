@@ -78,13 +78,13 @@ fun WorkspaceBottomSheet(
                         )
                         Column {
                             Text(
-                                text = if (authState.isAuthenticated) (authState.userEmail ?: "Google Account") else "Google Account Required",
+                                text = if (authState.isAuthenticated) (authState.userEmail ?: "Active Account") else "Authentication Required",
                                 color = TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = if (authState.isAuthenticated) "Ready for Antigravity turns" else "Tap to authenticate agent",
+                                text = if (authState.isAuthenticated) "Ready for native agent turns" else "Tap to authenticate agent",
                                 color = TextMuted,
                                 fontSize = 11.sp
                             )

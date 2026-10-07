@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -50,16 +51,17 @@ fun ThoughtCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.AutoAwesome,
+                        imageVector = AgyIcons.TerminalSpark,
                         contentDescription = "Thinking",
                         tint = AntigravityViolet,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Agent Reasoning",
+                        text = "THOUGHT STREAM",
                         color = AntigravityViolet,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp
                     )
                 }
 
@@ -75,16 +77,16 @@ fun ThoughtCard(
                 Text(
                     text = thoughtText,
                     color = TextSecondary,
-                    fontSize = 13.sp,
-                    fontStyle = FontStyle.Italic,
-                    lineHeight = 18.sp
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    lineHeight = 17.sp
                 )
             } else {
                 Text(
                     text = thoughtText.take(120).replace("\n", " ") + if (thoughtText.length > 120) "..." else "",
                     color = TextMuted,
                     fontSize = 12.sp,
-                    fontStyle = FontStyle.Italic,
+                    fontFamily = FontFamily.Monospace,
                     maxLines = 2
                 )
             }

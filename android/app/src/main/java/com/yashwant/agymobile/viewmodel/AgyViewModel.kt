@@ -131,9 +131,14 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun submitAuthCode(code: String) {
         viewModelScope.launch {
+            val trimmed = code.trim()
             val agyExe = bootstrapManager.getAgyExecutable()
             val env = bootstrapManager.getEnvironmentVariables()
-            val success = authManager.submitAuthCode(code, agyExe, env)
+
+            // If an active turn or auth prompt is listening on stdin, pass code directly
+            boundServiceInstance?.engine?.sendInput(trimmed)
+
+            val success = authManager.submitAuthCode(trimmed, agyExe, env)
             if (success) {
                 _showAuthSheet.value = false
                 _messages.value = _messages.value + ChatMessage(
@@ -151,6 +156,17 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             _messages.value = _messages.value + ChatMessage(
                 role = MessageRole.ASSISTANT,
                 content = "Credentials successfully imported. Authenticated as ${authManager.authState.value.userEmail ?: "Google Account"}."
+            )
+        }
+    }
+
+    fun saveApiKey(key: String) {
+        val success = authManager.saveApiKey(key)
+        if (success) {
+            _showAuthSheet.value = false
+            _messages.value = _messages.value + ChatMessage(
+                role = MessageRole.ASSISTANT,
+                content = "Gemini API Key activated successfully! Native Antigravity agent is ready."
             )
         }
     }
@@ -214,6 +230,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private fun handleEvent(event: AgyEvent) {
         when (event) {
             is AgyEvent.AuthRequired -> {
+                authManager.setExternalAuthUrl(event.authUrl)
                 _showAuthSheet.value = true
             }
             is AgyEvent.TurnStart -> {

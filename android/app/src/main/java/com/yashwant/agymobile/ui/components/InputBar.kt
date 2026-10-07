@@ -16,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
@@ -128,13 +130,16 @@ fun InputBar(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(if (isRunning) CrimsonDanger else ElectricCyan)
+                    .background(
+                        if (isRunning) SolidColor(CrimsonDanger)
+                        else Brush.linearGradient(listOf(ElectricCyan, Color(0xFF38BDF8)))
+                    )
             ) {
                 Icon(
-                    imageVector = if (isRunning) Icons.Default.Stop else Icons.Default.Send,
+                    imageVector = if (isRunning) Icons.Default.Stop else AgyIcons.SendPlane,
                     contentDescription = if (isRunning) "Cancel" else "Send",
                     tint = ObsidianBlack,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(19.dp)
                 )
             }
         }

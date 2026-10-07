@@ -31,7 +31,7 @@ class AuthManager(
         const val CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
         const val CLIENT_SECRET = "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"
         const val REDIRECT_URI = "https://antigravity.google/oauth-callback"
-        const val OAUTH_SCOPES = "https://www.googleapis.com/auth/cloud-platform openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+        const val OAUTH_SCOPES = "https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/cclog https://www.googleapis.com/auth/experimentsandconfigs https://www.googleapis.com/auth/aicode openid"
 
         private val OAUTH_URL_PATTERN = Pattern.compile("https://accounts\\.google\\.com/o/oauth2/auth[^\\s\"'>]+")
 
@@ -56,6 +56,14 @@ class AuthManager(
 
     fun refreshState() {
         _authState.value = checkAuthState()
+    }
+
+    fun setExternalAuthUrl(url: String) {
+        _authState.value = _authState.value.copy(
+            isAuthenticating = true,
+            authUrl = url,
+            error = null
+        )
     }
 
     /**
@@ -242,6 +250,27 @@ class AuthManager(
         } else {
             _authState.value = _authState.value.copy(
                 error = "Invalid or unparseable credentials JSON"
+            )
+            return false
+        }
+    }
+
+    fun saveApiKey(apiKey: String): Boolean {
+        val trimmed = apiKey.trim()
+        if (trimmed.isEmpty()) return false
+        val success = bootstrapManager.saveApiKey(trimmed)
+        if (success) {
+            _authState.value = AuthState(
+                isAuthenticated = true,
+                userEmail = "Gemini API Key",
+                isAuthenticating = false,
+                authUrl = null,
+                error = null
+            )
+            return true
+        } else {
+            _authState.value = _authState.value.copy(
+                error = "Failed to save Gemini API key"
             )
             return false
         }

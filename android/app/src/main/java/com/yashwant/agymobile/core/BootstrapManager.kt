@@ -100,6 +100,11 @@ class BootstrapManager(
             env["LD_LIBRARY_PATH"] = nativeLibDir.absolutePath
         }
 
+        val apiKey = getApiKey()
+        if (!apiKey.isNullOrBlank()) {
+            env["GEMINI_API_KEY"] = apiKey
+        }
+
         return env
     }
 
@@ -108,13 +113,48 @@ class BootstrapManager(
     fun getOauthCredsFile(): File = File(geminiDir, "oauth_creds.json")
     fun getGoogleAccountsFile(): File = File(geminiDir, "google_accounts.json")
     fun getSettingsFile(): File = File(geminiDir, "settings.json")
+    fun getApiKeyFile(): File = File(geminiDir, "api_key.txt")
+
+    fun getApiKey(): String? {
+        val file = getApiKeyFile()
+        if (file.exists()) {
+            val key = file.readText().trim()
+            if (key.isNotBlank()) return key
+        }
+        return null
+    }
+
+    fun saveApiKey(key: String): Boolean {
+        return try {
+            geminiDir.mkdirs()
+            getApiKeyFile().writeText(key.trim())
+
+            // libagy.so requires modelProvider: "gemini" in settings.json to bypass OAuth
+            val settingsJson = org.json.JSONObject()
+            settingsJson.put("modelProvider", "gemini")
+            getSettingsFile().writeText(settingsJson.toString(2))
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
 
     fun isLoggedIn(): Boolean {
+        // 1. Direct Gemini API Key mode
+        val apiKey = getApiKey()
+        if (!apiKey.isNullOrBlank()) return true
+
+        // 2. Google OAuth mode
         val creds = getOauthCredsFile()
         return creds.exists() && creds.length() > 0
     }
 
     fun getAuthAccount(): String? {
+        val apiKey = getApiKey()
+        if (!apiKey.isNullOrBlank()) {
+            return "Gemini API (Active)"
+        }
+
         val accountsFile = getGoogleAccountsFile()
         if (accountsFile.exists()) {
             try {
@@ -155,17 +195,18 @@ class BootstrapManager(
             geminiDir.mkdirs()
             getOauthCredsFile().writeText(oauthJson.trim())
 
-            // Default security settings
-            val settings = getSettingsFile()
-            if (!settings.exists()) {
-                val settingsJson = org.json.JSONObject()
-                val sec = org.json.JSONObject()
-                val auth = org.json.JSONObject()
-                auth.put("selectedType", "oauth-personal")
-                sec.put("auth", auth)
-                settingsJson.put("security", sec)
-                settings.writeText(settingsJson.toString(2))
-            }
+            // Clear any lingering API key file so settings.json switches back to OAuth
+            val keyFile = getApiKeyFile()
+            if (keyFile.exists()) keyFile.delete()
+
+            // To switch back to signing in, remove "modelProvider" from settings.json
+            val settingsJson = org.json.JSONObject()
+            val sec = org.json.JSONObject()
+            val auth = org.json.JSONObject()
+            auth.put("selectedType", "oauth-personal")
+            sec.put("auth", auth)
+            settingsJson.put("security", sec)
+            getSettingsFile().writeText(settingsJson.toString(2))
 
             // Google accounts file
             val targetEmail = email ?: getAuthAccount()
@@ -191,6 +232,16 @@ class BootstrapManager(
         val accounts = getGoogleAccountsFile()
         if (accounts.exists()) {
             accounts.delete()
+        }
+        val keyFile = getApiKeyFile()
+        if (keyFile.exists()) {
+            keyFile.delete()
+        }
+        val settings = getSettingsFile()
+        if (settings.exists()) {
+            try {
+                settings.writeText("{}")
+            } catch (_: Exception) {}
         }
         return success
     }
