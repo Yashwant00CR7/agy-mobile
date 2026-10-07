@@ -225,7 +225,8 @@ class AgyProcessEngine(
             val args = mutableListOf(
                 agyExecutable.absolutePath,
                 "-p", request.prompt,
-                "--output-format", "stream-json"
+                "--output-format", "stream-json",
+                "--mode", "accept-edits"
             )
 
             if (request.autonomous) {
@@ -237,13 +238,20 @@ class AgyProcessEngine(
                 args.add(request.conversationId)
             }
 
-            val modelName = request.model?.takeIf { it.isNotBlank() } ?: "Gemini 3.8 Flash (High)"
+            val modelSlug = BootstrapManager.toCanonicalModelSlug(request.model)
             args.add("--model")
-            args.add(modelName)
+            args.add(modelSlug)
 
-            if (!request.effort.isNullOrBlank()) {
+            val effort = when {
+                !request.effort.isNullOrBlank() -> request.effort
+                modelSlug.endsWith("-high") -> "high"
+                modelSlug.endsWith("-medium") -> "medium"
+                modelSlug.endsWith("-low") -> "low"
+                else -> null
+            }
+            if (effort != null) {
                 args.add("--effort")
-                args.add(request.effort)
+                args.add(effort)
             }
 
             val processBuilder = ProcessBuilder(args)

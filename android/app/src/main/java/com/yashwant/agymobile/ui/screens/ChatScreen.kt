@@ -440,10 +440,12 @@ fun ChatScreen(
                             MessageRole.ERROR -> {
                                 val isAuthError = msg.content.contains("authentication required", ignoreCase = true) ||
                                         msg.content.contains("Run 'libagy.so' to log in", ignoreCase = true) ||
-                                        msg.content.contains("authentication failed", ignoreCase = true)
+                                        msg.content.contains("authentication failed", ignoreCase = true) ||
+                                        msg.content.contains("API key not valid", ignoreCase = true)
 
                                 val isModelError = msg.content.contains("plan model not specified", ignoreCase = true) ||
-                                        msg.content.contains("invalid model selection", ignoreCase = true)
+                                        msg.content.contains("invalid model selection", ignoreCase = true) ||
+                                        msg.content.contains("model not recognized", ignoreCase = true)
 
                                 if (isAuthError) {
                                     // Interactive Auth Recovery Card
@@ -476,7 +478,7 @@ fun ChatScreen(
                                             }
 
                                             Text(
-                                                text = "libagy needs active credentials to execute prompts and tools.",
+                                                text = "libagy needs active credentials or a free Gemini API key to execute tools.",
                                                 color = TextSecondary,
                                                 fontSize = 12.sp,
                                                 lineHeight = 16.sp
@@ -496,7 +498,7 @@ fun ChatScreen(
                                         }
                                     }
                                 } else if (isModelError) {
-                                    // Interactive Model Error Card
+                                    // Interactive Model & Key Configuration Card
                                     Card(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -518,7 +520,7 @@ fun ChatScreen(
                                                     modifier = Modifier.size(18.dp)
                                                 )
                                                 Text(
-                                                    text = "Agent Model Selection Required",
+                                                    text = "Agent Model & Key Configuration",
                                                     color = TextPrimary,
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold
@@ -526,22 +528,39 @@ fun ChatScreen(
                                             }
 
                                             Text(
-                                                text = "Select an available LLM model to continue executing with libagy.",
+                                                text = "Active Model: $selectedModel. Select a model or activate a free Gemini API key from Google AI Studio for instant native execution.",
                                                 color = TextSecondary,
                                                 fontSize = 12.sp,
                                                 lineHeight = 16.sp
                                             )
 
-                                            Button(
-                                                onClick = { showModelPicker = true },
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = ElectricCyan,
-                                                    contentColor = ObsidianBlack
-                                                ),
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.fillMaxWidth()
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                Text(text = "Choose Model (Default: Gemini 3.8 Flash)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Button(
+                                                    onClick = { showModelPicker = true },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = ElectricCyan,
+                                                        contentColor = ObsidianBlack
+                                                    ),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(text = "Choose Model", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = onOpenAuth,
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        contentColor = ElectricCyan
+                                                    ),
+                                                    border = androidx.compose.foundation.BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.5f)),
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Text(text = "Enter API Key", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                                }
                                             }
                                         }
                                     }

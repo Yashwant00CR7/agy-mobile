@@ -97,13 +97,31 @@ class BootstrapManagerTest {
         assertTrue(manager.getGcloudAdcFile().exists())
 
         val adcEnv = manager.getEnvironmentVariables()
-        assertEquals("true", adcEnv["AGY_ADC_AUTH"])
+        assertFalse(adcEnv.containsKey("AGY_ADC_AUTH"))
         assertEquals(manager.getAdcFile().absolutePath, adcEnv["GOOGLE_APPLICATION_CREDENTIALS"])
 
         assertTrue(manager.clearAuth())
         assertFalse(manager.isLoggedIn())
         assertNull(manager.getAuthAccount())
         assertFalse(manager.getAdcFile().exists())
+    }
+
+    @Test
+    fun testModelSelectionAndPersistence() {
+        val root = tempFolder.newFolder("app_files_model")
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
+
+        assertEquals("gemini-3.8-flash-high", manager.getSelectedModel())
+        assertEquals("Gemini 3.8 Flash (High)", manager.getSelectedModelDisplayName())
+
+        assertTrue(manager.saveSelectedModel("Gemini 3.8 Flash (Medium)"))
+        assertEquals("gemini-3.8-flash-medium", manager.getSelectedModel())
+        assertEquals("Gemini 3.8 Flash (Medium)", manager.getSelectedModelDisplayName())
+
+        assertTrue(manager.saveSelectedModel("Claude Sonnet 4.6 (Thinking)"))
+        assertEquals("claude-sonnet-4-6", manager.getSelectedModel())
+        assertEquals("Claude Sonnet 4.6 (Thinking)", manager.getSelectedModelDisplayName())
     }
 
     @Test

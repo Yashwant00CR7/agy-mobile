@@ -211,11 +211,79 @@ fun AuthBottomSheet(
                         )
 
                         Text(
-                            text = "Engine is fully authenticated and ready to execute agent turns and terminal tools natively.",
+                            text = "Engine is authenticated. For instant, unrestricted native execution on Android, you can also attach a Gemini API key.",
                             color = TextSecondary,
                             fontSize = 12.sp,
                             lineHeight = 17.sp
                         )
+                    }
+                }
+
+                var showKeyEditorInActiveSession by remember { mutableStateOf(false) }
+
+                if (showKeyEditorInActiveSession) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, AntigravityViolet.copy(alpha = 0.5f), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(containerColor = ObsidianBlack)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text("Attach Gemini API Key", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            OutlinedTextField(
+                                value = apiKeyInput,
+                                onValueChange = { apiKeyInput = it },
+                                placeholder = { Text("AIzaSy...", color = TextMuted, fontSize = 12.sp) },
+                                singleLine = true,
+                                visualTransformation = if (showApiKey) VisualTransformation.None else PasswordVisualTransformation(),
+                                textStyle = LocalTextStyle.current.copy(color = TextPrimary, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                                trailingIcon = {
+                                    IconButton(onClick = { showApiKey = !showApiKey }) {
+                                        Icon(
+                                            imageVector = if (showApiKey) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                Button(
+                                    onClick = {
+                                        onSaveApiKey(apiKeyInput.trim())
+                                        showKeyEditorInActiveSession = false
+                                    },
+                                    enabled = apiKeyInput.isNotBlank(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = AntigravityViolet),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Save Key", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                                OutlinedButton(
+                                    onClick = { onLaunchBrowser("https://aistudio.google.com/app/apikey") },
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("Get Free Key", fontSize = 12.sp)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = { showKeyEditorInActiveSession = true },
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ElectricCyan),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.5f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(imageVector = Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Configure / Switch Gemini API Key", fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -497,11 +565,23 @@ fun AuthBottomSheet(
                             }
 
                             Text(
-                                text = "Exports GEMINI_API_KEY and configures modelProvider: \"gemini\" in settings.json. Bypasses browser login and runs directly on phone.",
+                                text = "Exports GEMINI_API_KEY and configures modelProvider: \"gemini\" in settings.json. Bypasses browser login and runs directly on phone with 1,500 free requests/day.",
                                 color = TextSecondary,
                                 fontSize = 12.sp,
                                 lineHeight = 16.sp
                             )
+
+                            OutlinedButton(
+                                onClick = { onLaunchBrowser("https://aistudio.google.com/app/apikey") },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ElectricCyan),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.5f)),
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(imageVector = Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Get Free Key from Google AI Studio", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
 
                             OutlinedTextField(
                                 value = apiKeyInput,

@@ -22,17 +22,26 @@ class BootstrapManager(
                 agyCliDir.mkdirs()
 
         // Ensure default settings.json exists with standard plan model
-        val cliSettings = getAgyCliSettingsFile()
-        if (!cliSettings.exists()) {
-            try {
-                val defaultSettings = org.json.JSONObject().apply {
-                    put("model", "Gemini 3.8 Flash (High)")
-                    put("agentMode", "accept-edits")
+        try {
+            for (file in listOf(getSettingsFile(), getAgyCliSettingsFile())) {
+                val json = if (file.exists()) {
+                    try { org.json.JSONObject(file.readText()) } catch (_: Exception) { org.json.JSONObject() }
+                } else org.json.JSONObject()
+
+                if (!json.has("model")) {
+                    json.put("model", "gemini-3.8-flash-high")
                 }
-                cliSettings.writeText(defaultSettings.toString(2))
-                getSettingsFile().writeText(defaultSettings.toString(2))
-            } catch (_: Exception) {}
-        }
+                if (!json.has("agentMode")) {
+                    json.put("agentMode", "accept-edits")
+                }
+                val key = getApiKey()
+                if (key != null && !json.has("modelProvider")) {
+                    json.put("modelProvider", "gemini")
+                }
+                file.parentFile?.mkdirs()
+                file.writeText(json.toString(2))
+            }
+        } catch (_: Exception) {}
         return created
     }
 
@@ -123,7 +132,6 @@ class BootstrapManager(
             val adcFile = getAdcFile()
             if (adcFile.exists() && adcFile.length() > 0) {
                 env["GOOGLE_APPLICATION_CREDENTIALS"] = adcFile.absolutePath
-                env["AGY_ADC_AUTH"] = "true"
             }
         }
 
@@ -142,6 +150,46 @@ class BootstrapManager(
     fun getAdcFile(): File = File(geminiDir, "application_default_credentials.json")
     fun getGcloudAdcFile(): File = File(gcloudDir, "application_default_credentials.json")
 
+    fun getSelectedModel(): String {
+        val cliSettings = getAgyCliSettingsFile()
+        if (cliSettings.exists()) {
+            try {
+                val json = org.json.JSONObject(cliSettings.readText())
+                val m = json.optString("model", "")
+                if (m.isNotBlank()) return toCanonicalModelSlug(m)
+            } catch (_: Exception) {}
+        }
+        return "gemini-3.8-flash-high"
+    }
+
+    fun getSelectedModelDisplayName(): String {
+        return toDisplayName(getSelectedModel())
+    }
+
+    fun saveSelectedModel(modelDisplayNameOrId: String): Boolean {
+        val slug = toCanonicalModelSlug(modelDisplayNameOrId)
+        return try {
+            geminiDir.mkdirs()
+            agyCliDir.mkdirs()
+            for (file in listOf(getSettingsFile(), getAgyCliSettingsFile())) {
+                val json = if (file.exists()) {
+                    try { org.json.JSONObject(file.readText()) } catch (_: Exception) { org.json.JSONObject() }
+                } else org.json.JSONObject()
+
+                json.put("model", slug)
+                json.put("agentMode", "accept-edits")
+                if (getApiKey() != null) {
+                    json.put("modelProvider", "gemini")
+                }
+                file.parentFile?.mkdirs()
+                file.writeText(json.toString(2))
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     fun getApiKey(): String? {
         val file = getApiKeyFile()
         if (file.exists()) {
@@ -157,12 +205,18 @@ class BootstrapManager(
             agyCliDir.mkdirs()
             getApiKeyFile().writeText(key.trim())
 
-            // libagy.so requires modelProvider: "gemini" in settings.json to bypass OAuth
-            val settingsJson = org.json.JSONObject()
-            settingsJson.put("modelProvider", "gemini")
-            settingsJson.put("model", "Gemini 3.8 Flash (High)")
-            getSettingsFile().writeText(settingsJson.toString(2))
-            getAgyCliSettingsFile().writeText(settingsJson.toString(2))
+            val modelSlug = getSelectedModel()
+            for (file in listOf(getSettingsFile(), getAgyCliSettingsFile())) {
+                val json = if (file.exists()) {
+                    try { org.json.JSONObject(file.readText()) } catch (_: Exception) { org.json.JSONObject() }
+                } else org.json.JSONObject()
+
+                json.put("modelProvider", "gemini")
+                json.put("model", modelSlug)
+                json.put("agentMode", "accept-edits")
+                file.parentFile?.mkdirs()
+                file.writeText(json.toString(2))
+            }
             true
         } catch (_: Exception) {
             false
@@ -355,5 +409,42 @@ class BootstrapManager(
             } catch (_: Exception) {}
         }
         return success
+    }
+
+    companion object {
+        fun toCanonicalModelSlug(nameOrId: String?): String {
+            val s = nameOrId?.trim() ?: return "gemini-3.8-flash-high"
+            return when {
+                s.contains("3.8 Flash (Medium)", ignoreCase = true) || s == "gemini-3.8-flash-medium" -> "gemini-3.8-flash-medium"
+                s.contains("3.8 Flash (Low)", ignoreCase = true) || s == "gemini-3.8-flash-low" -> "gemini-3.8-flash-low"
+                s.contains("3.7 Flash (High)", ignoreCase = true) || s == "gemini-3.7-flash-high" -> "gemini-3.7-flash-high"
+                s.contains("3.7 Flash (Medium)", ignoreCase = true) || s == "gemini-3.7-flash-medium" -> "gemini-3.7-flash-medium"
+                s.contains("3.7 Flash (Low)", ignoreCase = true) || s == "gemini-3.7-flash-low" -> "gemini-3.7-flash-low"
+                s.contains("3.6 Flash (High)", ignoreCase = true) || s == "gemini-3.6-flash-high" -> "gemini-3.6-flash-high"
+                s.contains("3.1 Pro (High)", ignoreCase = true) || s == "gemini-3.1-pro-high" -> "gemini-3.1-pro-high"
+                s.contains("Claude Sonnet 4.6", ignoreCase = true) || s == "claude-sonnet-4-6" -> "claude-sonnet-4-6"
+                s.contains("Claude Opus 4.6", ignoreCase = true) || s == "claude-opus-4-6-thinking" -> "claude-opus-4-6-thinking"
+                s.contains("GPT-OSS 120B", ignoreCase = true) || s == "gpt-oss-120b-medium" -> "gpt-oss-120b-medium"
+                else -> "gemini-3.8-flash-high"
+            }
+        }
+
+        fun toDisplayName(slugOrId: String?): String {
+            val s = slugOrId?.trim() ?: return "Gemini 3.8 Flash (High)"
+            return when (s) {
+                "gemini-3.8-flash-high" -> "Gemini 3.8 Flash (High)"
+                "gemini-3.8-flash-medium" -> "Gemini 3.8 Flash (Medium)"
+                "gemini-3.8-flash-low" -> "Gemini 3.8 Flash (Low)"
+                "gemini-3.7-flash-high" -> "Gemini 3.7 Flash (High)"
+                "gemini-3.7-flash-medium" -> "Gemini 3.7 Flash (Medium)"
+                "gemini-3.7-flash-low" -> "Gemini 3.7 Flash (Low)"
+                "gemini-3.6-flash-high" -> "Gemini 3.6 Flash (High)"
+                "gemini-3.1-pro-high" -> "Gemini 3.1 Pro (High)"
+                "claude-sonnet-4-6" -> "Claude Sonnet 4.6 (Thinking)"
+                "claude-opus-4-6-thinking" -> "Claude Opus 4.6 (Thinking)"
+                "gpt-oss-120b-medium" -> "GPT-OSS 120B (Medium)"
+                else -> if (s.contains("(")) s else "Gemini 3.8 Flash (High)"
+            }
+        }
     }
 }

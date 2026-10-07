@@ -41,11 +41,23 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         "Claude Sonnet 4.6 (Thinking)"
     )
 
-    private val _selectedModel = MutableStateFlow("Gemini 3.8 Flash (High)")
+    private val _selectedModel = MutableStateFlow(bootstrapManager.getSelectedModelDisplayName())
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
 
     fun selectModel(model: String) {
         _selectedModel.value = model
+        bootstrapManager.saveSelectedModel(model)
+        dismissModelErrors()
+    }
+
+    fun dismissModelErrors() {
+        _messages.value = _messages.value.filterNot { msg ->
+            msg.role == MessageRole.ERROR && (
+                msg.content.contains("plan model not specified", ignoreCase = true) ||
+                msg.content.contains("invalid model selection", ignoreCase = true) ||
+                msg.content.contains("model not recognized", ignoreCase = true)
+            )
+        }
     }
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
