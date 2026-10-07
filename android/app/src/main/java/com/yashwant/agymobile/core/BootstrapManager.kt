@@ -103,17 +103,28 @@ class BootstrapManager(
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) {
             env["GEMINI_API_KEY"] = apiKey
+        } else {
+            val adcFile = getAdcFile()
+            if (adcFile.exists() && adcFile.length() > 0) {
+                env["GOOGLE_APPLICATION_CREDENTIALS"] = adcFile.absolutePath
+                env["AGY_ADC_AUTH"] = "true"
+            }
         }
 
         return env
     }
 
     val geminiDir: File = File(homeDir, ".gemini")
+    val agyCliDir: File = File(geminiDir, "antigravity-cli")
+    val gcloudDir: File = File(File(homeDir, ".config"), "gcloud")
 
     fun getOauthCredsFile(): File = File(geminiDir, "oauth_creds.json")
     fun getGoogleAccountsFile(): File = File(geminiDir, "google_accounts.json")
     fun getSettingsFile(): File = File(geminiDir, "settings.json")
+    fun getAgyCliSettingsFile(): File = File(agyCliDir, "settings.json")
     fun getApiKeyFile(): File = File(geminiDir, "api_key.txt")
+    fun getAdcFile(): File = File(geminiDir, "application_default_credentials.json")
+    fun getGcloudAdcFile(): File = File(gcloudDir, "application_default_credentials.json")
 
     fun getApiKey(): String? {
         val file = getApiKeyFile()
@@ -127,12 +138,14 @@ class BootstrapManager(
     fun saveApiKey(key: String): Boolean {
         return try {
             geminiDir.mkdirs()
+            agyCliDir.mkdirs()
             getApiKeyFile().writeText(key.trim())
 
             // libagy.so requires modelProvider: "gemini" in settings.json to bypass OAuth
             val settingsJson = org.json.JSONObject()
             settingsJson.put("modelProvider", "gemini")
             getSettingsFile().writeText(settingsJson.toString(2))
+            getAgyCliSettingsFile().writeText(settingsJson.toString(2))
             true
         } catch (_: Exception) {
             false
@@ -144,7 +157,11 @@ class BootstrapManager(
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) return true
 
-        // 2. Google OAuth mode
+        // 2. Google ADC mode
+        val adc = getAdcFile()
+        if (adc.exists() && adc.length() > 0) return true
+
+        // 3. Google OAuth creds mode
         val creds = getOauthCredsFile()
         return creds.exists() && creds.length() > 0
     }
@@ -153,6 +170,15 @@ class BootstrapManager(
         val apiKey = getApiKey()
         if (!apiKey.isNullOrBlank()) {
             return "Gemini API (Active)"
+        }
+
+        val adcFile = getAdcFile()
+        if (adcFile.exists()) {
+            try {
+                val json = org.json.JSONObject(adcFile.readText())
+                val account = json.optString("account", "")
+                if (account.isNotBlank()) return account
+            } catch (_: Exception) {}
         }
 
         val accountsFile = getGoogleAccountsFile()
@@ -193,13 +219,15 @@ class BootstrapManager(
     fun writeCredentials(oauthJson: String, email: String? = null): Boolean {
         try {
             geminiDir.mkdirs()
+            agyCliDir.mkdirs()
+            gcloudDir.mkdirs()
             getOauthCredsFile().writeText(oauthJson.trim())
 
             // Clear any lingering API key file so settings.json switches back to OAuth
             val keyFile = getApiKeyFile()
             if (keyFile.exists()) keyFile.delete()
 
-            // To switch back to signing in, remove "modelProvider" from settings.json
+            // To switch back to signing in, configure OAuth in settings.json in both locations
             val settingsJson = org.json.JSONObject()
             val sec = org.json.JSONObject()
             val auth = org.json.JSONObject()
@@ -207,9 +235,59 @@ class BootstrapManager(
             sec.put("auth", auth)
             settingsJson.put("security", sec)
             getSettingsFile().writeText(settingsJson.toString(2))
+            getAgyCliSettingsFile().writeText(settingsJson.toString(2))
+
+            // Parse OAuth tokens to construct standard Google ADC format for libagy.so
+            var refreshToken: String? = null
+            var userEmail = email
+            try {
+                val parsed = org.json.JSONObject(oauthJson)
+                if (parsed.has("refresh_token") && parsed.getString("refresh_token").isNotBlank()) {
+                    refreshToken = parsed.getString("refresh_token")
+                }
+                if (userEmail == null && parsed.has("id_token")) {
+                    val idToken = parsed.getString("id_token")
+                    val parts = idToken.split(".")
+                    if (parts.size >= 2) {
+                        val decodedBytes = try {
+                            java.util.Base64.getUrlDecoder().decode(parts[1])
+                        } catch (_: Exception) {
+                            java.util.Base64.getDecoder().decode(parts[1])
+                        }
+                        val jwtJson = org.json.JSONObject(String(decodedBytes))
+                        userEmail = if (jwtJson.has("email")) jwtJson.getString("email") else null
+                    }
+                }
+            } catch (_: Exception) {}
+
+            // Preserve old refresh_token if new response omitted it
+            if (refreshToken == null && getAdcFile().exists()) {
+                try {
+                    val oldAdc = org.json.JSONObject(getAdcFile().readText())
+                    if (oldAdc.has("refresh_token")) {
+                        refreshToken = oldAdc.getString("refresh_token")
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val targetEmail = userEmail ?: getAuthAccount()
+
+            if (!refreshToken.isNullOrBlank()) {
+                val adcJson = org.json.JSONObject().apply {
+                    put("client_id", AuthManager.CLIENT_ID)
+                    put("client_secret", AuthManager.CLIENT_SECRET)
+                    put("refresh_token", refreshToken)
+                    put("type", "authorized_user")
+                    if (!targetEmail.isNullOrBlank()) {
+                        put("account", targetEmail)
+                    }
+                }
+                val adcContent = adcJson.toString(2)
+                getAdcFile().writeText(adcContent)
+                getGcloudAdcFile().writeText(adcContent)
+            }
 
             // Google accounts file
-            val targetEmail = email ?: getAuthAccount()
             if (!targetEmail.isNullOrBlank()) {
                 val accountsJson = org.json.JSONObject()
                 accountsJson.put("active", targetEmail)
@@ -229,6 +307,14 @@ class BootstrapManager(
         if (creds.exists()) {
             success = success && creds.delete()
         }
+        val adc = getAdcFile()
+        if (adc.exists()) {
+            success = success && adc.delete()
+        }
+        val gcloudAdc = getGcloudAdcFile()
+        if (gcloudAdc.exists()) {
+            success = success && gcloudAdc.delete()
+        }
         val accounts = getGoogleAccountsFile()
         if (accounts.exists()) {
             accounts.delete()
@@ -241,6 +327,12 @@ class BootstrapManager(
         if (settings.exists()) {
             try {
                 settings.writeText("{}")
+            } catch (_: Exception) {}
+        }
+        val cliSettings = getAgyCliSettingsFile()
+        if (cliSettings.exists()) {
+            try {
+                cliSettings.writeText("{}")
             } catch (_: Exception) {}
         }
         return success

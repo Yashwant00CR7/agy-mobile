@@ -176,9 +176,21 @@ class AuthManager(
                 val responseText = conn.inputStream.bufferedReader().readText()
                 val json = JSONObject(responseText)
 
+                var refreshToken = json.optString("refresh_token")
+                if (refreshToken.isBlank()) {
+                    val oldAdc = bootstrapManager.getAdcFile()
+                    if (oldAdc.exists()) {
+                        try {
+                            refreshToken = JSONObject(oldAdc.readText()).optString("refresh_token")
+                        } catch (_: Exception) {}
+                    }
+                }
+
                 val credsJson = JSONObject().apply {
                     put("access_token", json.optString("access_token"))
-                    put("refresh_token", json.optString("refresh_token"))
+                    if (refreshToken.isNotBlank()) {
+                        put("refresh_token", refreshToken)
+                    }
                     put("scope", json.optString("scope", OAUTH_SCOPES))
                     put("token_type", json.optString("token_type", "Bearer"))
                     put("id_token", json.optString("id_token"))

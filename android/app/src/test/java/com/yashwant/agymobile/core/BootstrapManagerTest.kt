@@ -92,10 +92,18 @@ class BootstrapManagerTest {
         assertTrue(manager.isLoggedIn())
         assertEquals("user@example.com", manager.getAuthAccount())
         assertTrue(manager.getSettingsFile().exists())
+        assertTrue(manager.getAgyCliSettingsFile().exists())
+        assertTrue(manager.getAdcFile().exists())
+        assertTrue(manager.getGcloudAdcFile().exists())
+
+        val adcEnv = manager.getEnvironmentVariables()
+        assertEquals("true", adcEnv["AGY_ADC_AUTH"])
+        assertEquals(manager.getAdcFile().absolutePath, adcEnv["GOOGLE_APPLICATION_CREDENTIALS"])
 
         assertTrue(manager.clearAuth())
         assertFalse(manager.isLoggedIn())
         assertNull(manager.getAuthAccount())
+        assertFalse(manager.getAdcFile().exists())
     }
 
     @Test
