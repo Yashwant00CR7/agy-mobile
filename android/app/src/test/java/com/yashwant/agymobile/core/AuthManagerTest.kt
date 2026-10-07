@@ -92,4 +92,21 @@ class AuthManagerTest {
         assertFalse(authManager.authState.value.isAuthenticated)
         assertNull(authManager.authState.value.userEmail)
     }
+
+    @Test
+    fun testGenerateAuthUrl() {
+        val root = tempFolder.newFolder("auth_test_gen_url")
+        val bootstrapManager = BootstrapManager(root)
+        val authManager = AuthManager(bootstrapManager)
+
+        val url = authManager.generateAuthUrl()
+        assertNotNull(url)
+        assertTrue(url.startsWith("https://accounts.google.com/o/oauth2/auth"))
+        assertTrue(url.contains("client_id=${AuthManager.CLIENT_ID}"))
+        assertTrue(url.contains("code_challenge_method=S256"))
+        assertTrue(url.contains("code_challenge="))
+        assertTrue(url.contains("redirect_uri="))
+        assertTrue(authManager.authState.value.isAuthenticating)
+        assertEquals(url, authManager.authState.value.authUrl)
+    }
 }

@@ -5,7 +5,14 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.security.MessageDigest
+import java.security.SecureRandom
+import java.util.Base64
 import java.util.regex.Pattern
 
 class AuthManager(
@@ -16,9 +23,16 @@ class AuthManager(
     private val _authState = MutableStateFlow(checkAuthState())
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
 
+    private var activeCodeVerifier: String? = null
+    private var activeState: String? = null
     private var activeAuthProcess: Process? = null
 
     companion object {
+        const val CLIENT_ID = "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
+        const val CLIENT_SECRET = "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"
+        const val REDIRECT_URI = "https://antigravity.google/oauth-callback"
+        const val OAUTH_SCOPES = "https://www.googleapis.com/auth/cloud-platform openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+
         private val OAUTH_URL_PATTERN = Pattern.compile("https://accounts\\.google\\.com/o/oauth2/auth[^\\s\"'>]+")
 
         fun extractOAuthUrl(text: String): String? {
@@ -32,116 +46,74 @@ class AuthManager(
     fun checkAuthState(): AuthState {
         val loggedIn = bootstrapManager.isLoggedIn()
         val account = if (loggedIn) bootstrapManager.getAuthAccount() else null
-        val state = AuthState(
+        return AuthState(
             isAuthenticated = loggedIn,
             userEmail = account,
-            isAuthenticating = activeAuthProcess != null,
+            isAuthenticating = activeCodeVerifier != null || activeAuthProcess != null,
             authUrl = _authState?.value?.authUrl
         )
-        return state
     }
 
     fun refreshState() {
         _authState.value = checkAuthState()
     }
 
-    fun startAuthSession(
-        agyExecutable: File,
-        envVars: Map<String, String>
-    ): Job {
-        cancelAuthSession()
+    /**
+     * Generates an official Google OAuth 2.0 PKCE authorization URL.
+     * Generates a cryptographically secure code_verifier, code_challenge (S256), and state,
+     * allowing in-phone authentication via Chrome Custom Tabs without depending on CLI TTY prompts.
+     */
+    fun generateAuthUrl(): String {
+        val verifierBytes = ByteArray(32)
+        SecureRandom().nextBytes(verifierBytes)
+        val verifier = Base64.getUrlEncoder().withoutPadding().encodeToString(verifierBytes)
+        activeCodeVerifier = verifier
+
+        val md = MessageDigest.getInstance("SHA-256")
+        val digest = md.digest(verifier.toByteArray(Charsets.US_ASCII))
+        val challenge = Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+
+        val stateBytes = ByteArray(16)
+        SecureRandom().nextBytes(stateBytes)
+        val state = Base64.getUrlEncoder().withoutPadding().encodeToString(stateBytes)
+        activeState = state
+
+        val encodedScope = URLEncoder.encode(OAUTH_SCOPES, "UTF-8")
+        val encodedRedirect = URLEncoder.encode(REDIRECT_URI, "UTF-8")
+
+        val url = "https://accounts.google.com/o/oauth2/auth?" +
+                "client_id=$CLIENT_ID" +
+                "&redirect_uri=$encodedRedirect" +
+                "&response_type=code" +
+                "&scope=$encodedScope" +
+                "&access_type=offline" +
+                "&code_challenge_method=S256" +
+                "&code_challenge=$challenge" +
+                "&state=$state" +
+                "&prompt=consent"
 
         _authState.value = _authState.value.copy(
             isAuthenticating = true,
-            authUrl = null,
+            authUrl = url,
             error = null
         )
+        return url
+    }
 
+    fun startAuthSession(
+        agyExecutable: File? = null,
+        envVars: Map<String, String>? = null
+    ): Job {
+        cancelAuthSession()
         return scope.launch(dispatcher) {
-            bootstrapManager.initializeDirectories()
-            val args = listOf(
-                agyExecutable.absolutePath,
-                "-p", "ping",
-                "--output-format", "stream-json",
-                "--dangerously-skip-permissions"
-            )
-
-            val pb = ProcessBuilder(args)
-            if (bootstrapManager.defaultWorkspaceDir.exists()) {
-                pb.directory(bootstrapManager.defaultWorkspaceDir)
-            }
-            pb.environment().putAll(envVars)
-
-            val fullLog = StringBuilder()
-
-            try {
-                val proc = pb.start()
-                activeAuthProcess = proc
-
-                val errorReader = proc.errorStream.bufferedReader()
-                val outReader = proc.inputStream.bufferedReader()
-
-                // Concurrently drain stdout and check for OAuth URL
-                launch {
-                    try {
-                        var outLine: String?
-                        while (isActive) {
-                            outLine = outReader.readLine() ?: break
-                            fullLog.append(outLine).append("\n")
-                            val url = extractOAuthUrl(outLine)
-                            if (url != null) {
-                                _authState.value = _authState.value.copy(
-                                    isAuthenticating = true,
-                                    authUrl = url
-                                )
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-
-                // Read stderr looking for OAuth URL
-                var line: String?
-                while (isActive) {
-                    line = errorReader.readLine() ?: break
-                    fullLog.append(line).append("\n")
-                    val url = extractOAuthUrl(line)
-                    if (url != null) {
-                        _authState.value = _authState.value.copy(
-                            isAuthenticating = true,
-                            authUrl = url
-                        )
-                    }
-                }
-
-                val exitCode = proc.waitFor()
-                if (exitCode == 0 || bootstrapManager.isLoggedIn()) {
-                    _authState.value = AuthState(
-                        isAuthenticated = true,
-                        userEmail = bootstrapManager.getAuthAccount(),
-                        isAuthenticating = false,
-                        authUrl = null,
-                        error = null
-                    )
-                } else if (_authState.value.isAuthenticating) {
-                    val logText = fullLog.toString().trim()
-                    _authState.value = _authState.value.copy(
-                        isAuthenticating = false,
-                        error = if (logText.isNotBlank()) logText else "Authentication process exited with code $exitCode"
-                    )
-                }
-            } catch (e: Exception) {
-                if (e !is CancellationException) {
-                    _authState.value = _authState.value.copy(
-                        isAuthenticating = false,
-                        error = e.message ?: "Authentication error"
-                    )
-                }
-            } finally {
-                activeAuthProcess = null
-            }
+            generateAuthUrl()
         }
     }
 
+    /**
+     * Exchanges an authorization code for OAuth tokens using Google's token endpoint.
+     * Handles both PKCE code_verifier and client credentials, writing output to ~/.gemini/oauth_creds.json.
+     */
     suspend fun submitAuthCode(
         code: String,
         agyExecutable: File? = null,
@@ -150,44 +122,64 @@ class AuthManager(
         val trimmed = code.trim()
         if (trimmed.isEmpty()) return@withContext false
 
-        var proc = activeAuthProcess
-
-        // If active process died or timed out, relaunch fresh probe with code on stdin
-        if (proc == null || !proc.isAlive) {
-            val exe = agyExecutable ?: bootstrapManager.getAgyExecutable()
-            val env = envVars ?: bootstrapManager.getEnvironmentVariables()
-            if (exe != null) {
-                bootstrapManager.initializeDirectories()
-                val args = listOf(
-                    exe.absolutePath,
-                    "-p", "ping",
-                    "--output-format", "stream-json",
-                    "--dangerously-skip-permissions"
-                )
-                val pb = ProcessBuilder(args)
-                if (bootstrapManager.defaultWorkspaceDir.exists()) {
-                    pb.directory(bootstrapManager.defaultWorkspaceDir)
-                }
-                pb.environment().putAll(env)
-                try {
-                    proc = pb.start()
-                    activeAuthProcess = proc
-                } catch (_: Exception) {}
+        // Extract code if user pasted a full callback URL (https://antigravity.google/oauth-callback?code=...)
+        val codeParam = Regex("[?&]code=([^&]+)").find(trimmed)?.groupValues?.get(1)
+        val cleanCode = codeParam?.let {
+            try {
+                java.net.URLDecoder.decode(it, "UTF-8")
+            } catch (_: Exception) {
+                it
             }
-        }
+        } ?: trimmed
 
-        val targetProc = proc ?: return@withContext false
+        _authState.value = _authState.value.copy(isAuthenticating = true, error = null)
 
         try {
-            val writer = targetProc.outputStream.bufferedWriter()
-            writer.write(trimmed)
-            writer.newLine()
-            writer.flush()
+            val verifier = activeCodeVerifier
+            val postParams = mutableMapOf(
+                "code" to cleanCode,
+                "client_id" to CLIENT_ID,
+                "client_secret" to CLIENT_SECRET,
+                "redirect_uri" to REDIRECT_URI,
+                "grant_type" to "authorization_code"
+            )
+            if (!verifier.isNullOrBlank()) {
+                postParams["code_verifier"] = verifier
+            }
 
-            // Wait briefly for credentials to be written
-            for (i in 0 until 50) {
-                delay(100)
-                if (bootstrapManager.isLoggedIn()) {
+            val url = URL("https://oauth2.googleapis.com/token")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.doOutput = true
+            conn.connectTimeout = 15000
+            conn.readTimeout = 15000
+            conn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+
+            val body = postParams.map { (k, v) ->
+                URLEncoder.encode(k, "UTF-8") + "=" + URLEncoder.encode(v, "UTF-8")
+            }.joinToString("&")
+
+            conn.outputStream.use { os ->
+                os.write(body.toByteArray(Charsets.UTF_8))
+            }
+
+            val responseCode = conn.responseCode
+            if (responseCode == 200) {
+                val responseText = conn.inputStream.bufferedReader().readText()
+                val json = JSONObject(responseText)
+
+                val credsJson = JSONObject().apply {
+                    put("access_token", json.optString("access_token"))
+                    put("refresh_token", json.optString("refresh_token"))
+                    put("scope", json.optString("scope", OAUTH_SCOPES))
+                    put("token_type", json.optString("token_type", "Bearer"))
+                    put("id_token", json.optString("id_token"))
+                    val expiresIn = json.optLong("expires_in", 3600)
+                    put("expiry_date", System.currentTimeMillis() + (expiresIn * 1000))
+                }
+
+                val saved = bootstrapManager.writeCredentials(credsJson.toString(2))
+                if (saved && bootstrapManager.isLoggedIn()) {
                     _authState.value = AuthState(
                         isAuthenticated = true,
                         userEmail = bootstrapManager.getAuthAccount(),
@@ -195,32 +187,39 @@ class AuthManager(
                         authUrl = null,
                         error = null
                     )
+                    activeCodeVerifier = null
+                    activeState = null
                     return@withContext true
+                } else {
+                    _authState.value = _authState.value.copy(
+                        isAuthenticating = false,
+                        error = "Failed to save OAuth credentials"
+                    )
+                    return@withContext false
                 }
-                if (!targetProc.isAlive) break
-            }
-
-            val success = bootstrapManager.isLoggedIn()
-            if (success) {
-                _authState.value = AuthState(
-                    isAuthenticated = true,
-                    userEmail = bootstrapManager.getAuthAccount(),
-                    isAuthenticating = false,
-                    authUrl = null,
-                    error = null
-                )
             } else {
-                val err = targetProc.errorStream.bufferedReader().readText().trim()
+                val errorStream = conn.errorStream?.bufferedReader()?.readText()
+                val errorMsg = if (!errorStream.isNullOrBlank()) {
+                    try {
+                        val errObj = JSONObject(errorStream)
+                        errObj.optString("error_description", errObj.optString("error", errorStream))
+                    } catch (_: Exception) {
+                        errorStream
+                    }
+                } else {
+                    "HTTP $responseCode from Google OAuth"
+                }
+
                 _authState.value = _authState.value.copy(
                     isAuthenticating = false,
-                    error = if (err.isNotBlank()) err else "Failed to authenticate with authorization code"
+                    error = "Sign-In Error: $errorMsg"
                 )
+                return@withContext false
             }
-            return@withContext success
         } catch (e: Exception) {
             _authState.value = _authState.value.copy(
                 isAuthenticating = false,
-                error = e.message ?: "Failed to write authorization code"
+                error = e.message ?: "Network error during authentication"
             )
             return@withContext false
         }
@@ -262,6 +261,8 @@ class AuthManager(
     }
 
     fun cancelAuthSession() {
+        activeCodeVerifier = null
+        activeState = null
         activeAuthProcess?.let {
             try {
                 it.destroyForcibly()
