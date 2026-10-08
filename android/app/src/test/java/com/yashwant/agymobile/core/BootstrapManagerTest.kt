@@ -166,4 +166,51 @@ class BootstrapManagerTest {
         assertFalse(manager.isLoggedIn())
         assertNull(manager.getApiKey())
     }
+
+    @Test
+    fun testShellResolutionWithNativeLibBash() {
+        val root = tempFolder.newFolder("app_files_bash")
+        val nativeDir = tempFolder.newFolder("native_lib_bash")
+        val libBash = File(nativeDir, "libbash.so")
+        libBash.writeText("#!/bin/sh\necho bash")
+        libBash.setExecutable(true)
+
+        val manager = BootstrapManager(root, nativeDir)
+        val shell = manager.getShellExecutable()
+        assertNotNull(shell)
+        assertEquals("libbash.so", shell.name)
+        assertEquals(libBash.absolutePath, shell.absolutePath)
+
+        val env = manager.getEnvironmentVariables()
+        assertEquals(libBash.absolutePath, env["SHELL"])
+    }
+
+    @Test
+    fun testShellResolutionFallback() {
+        val root = tempFolder.newFolder("app_files_fallback")
+        val manager = BootstrapManager(root)
+        val shell = manager.getShellExecutable()
+        assertNotNull(shell)
+        assertTrue(shell.name.contains("sh") || shell.name.contains("bash"))
+
+        val env = manager.getEnvironmentVariables()
+        assertTrue(env.containsKey("SHELL"))
+        assertNotNull(env["SHELL"])
+    }
+
+    @Test
+    fun testShellSymlinksCreation() {
+        val root = tempFolder.newFolder("app_files_symlinks")
+        val nativeDir = tempFolder.newFolder("native_lib_symlinks")
+        val libBash = File(nativeDir, "libbash.so")
+        libBash.writeText("#!/bin/sh\necho bash")
+        libBash.setExecutable(true)
+
+        val manager = BootstrapManager(root, nativeDir)
+        manager.initializeDirectories()
+
+        val bashLink = File(manager.binDir, "bash")
+        assertTrue(bashLink.exists())
+    }
 }
+

@@ -43,6 +43,7 @@ class BootstrapManager(
             }
         } catch (_: Exception) {}
 
+        setupShellLinks()
         syncExistingCredentials()
         return created
     }
@@ -101,6 +102,43 @@ class BootstrapManager(
         return getAgyExecutable() != null
     }
 
+    fun getShellExecutable(): File {
+        if (nativeLibDir != null) {
+            val libBash = File(nativeLibDir, "libbash.so")
+            if (libBash.exists() && libBash.canExecute()) {
+                return libBash
+            }
+        }
+        val systemSh = File("/system/bin/sh")
+        if (systemSh.exists() && systemSh.canExecute()) {
+            return systemSh
+        }
+        val binSh = File("/bin/sh")
+        if (binSh.exists() && binSh.canExecute()) {
+            return binSh
+        }
+        return File(binDir, "sh")
+    }
+
+    fun setupShellLinks() {
+        val shell = getShellExecutable()
+        try {
+            val bashLink = File(binDir, "bash")
+            if (!bashLink.exists()) {
+                try {
+                    java.nio.file.Files.createSymbolicLink(bashLink.toPath(), shell.toPath())
+                } catch (_: Exception) {}
+            }
+            val shLink = File(binDir, "sh")
+            if (!shLink.exists()) {
+                val shTarget = if (File("/system/bin/sh").exists()) File("/system/bin/sh") else shell
+                try {
+                    java.nio.file.Files.createSymbolicLink(shLink.toPath(), shTarget.toPath())
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+    }
+
     fun getEnvironmentVariables(): Map<String, String> {
         val pathBuilder = StringBuilder()
         if (nativeLibDir != null) {
@@ -114,7 +152,10 @@ class BootstrapManager(
             pathBuilder.append(":").append(currentPath)
         }
 
+        val shellExecutable = getShellExecutable()
+
         val env = mutableMapOf(
+            "SHELL" to shellExecutable.absolutePath,
             "PATH" to pathBuilder.toString(),
             "HOME" to homeDir.absolutePath,
             "TMPDIR" to tmpDir.absolutePath,
