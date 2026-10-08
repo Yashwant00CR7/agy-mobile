@@ -1,51 +1,20 @@
-# Phase Context: ChatGPT-Standard Mobile UI & UX Overhaul
+# Phase Context: Local Mobile Device Folder Workspaces & Native Bash Execution Hardening
 
 ## Problem & User Intent
-The previous user interface used an aggressive cyberpunk/neon obsidian aesthetic with heavy glowing borders, diagnostic status matrix cards, and cluttered bottom sheets. The user explicitly disliked this look and requested a complete overhaul on par with ChatGPT mobile's user experience, fluidity, and UX flows, combined with authentic Antigravity design aesthetics.
+1. **Local Mobile Folder Workspaces:** The user wants to directly open and run chats scoped to any local mobile device folder (e.g. in `/storage/emulated/0`, `/storage/emulated/0/Download`, `/storage/emulated/0/Documents`, or selected via Android's file picker). Chats and file operations must bind directly to that folder as the active workspace.
+2. **"bash is not callable" Error:** In some cases on Android, attempts to execute bash commands fail with "bash is not callable" or command resolution errors. This stems from two sources:
+   - Android 10+ (API 29+) SELinux W^X restrictions preventing execution of binaries or symlinks located in app data storage (`binDir/bash` fails with errno 13 Permission Denied), while `libbash.so` resides in `nativeLibraryDir` without a standalone file named `bash`.
+   - LLMs or skills attempting to call a non-existent tool named `bash` rather than the official Antigravity tool `run_command`.
 
 ## Mental Model & Core Abstractions
-1. **Clean, Distraction-Free Canvas:**
-   - Dark, sophisticated slate/graphite neutral tones (`#131314` background, `#212124` elevated surfaces, `#2D3139` user bubbles) reminiscent of Google Antigravity & modern ChatGPT mobile dark mode.
-   - Refined Antigravity accents (delicate blue-violet `#4E80EE` / `#7C3AED` and cyan accents for active icons and states; no gaudy neon borders or matrix boxes).
-
-2. **Navigation & Flow:**
-   - **Top Navigation Bar:**
-     - Left: Hamburger menu icon that slides open the navigation drawer.
-     - Center: Centered model dropdown pill (`Gemini 2.5 Flash ▾`) providing seamless model selection via bottom sheet.
-     - Right: New Chat icon (`SquarePen` / Edit icon) allowing instant conversation reset.
-   - **Left Navigation Drawer (`ModalNavigationDrawer`):**
-     - Full-height drawer sliding from left edge.
-     - "+ New Chat" primary button at top.
-     - Conversation history list chronologically grouped (Today, Yesterday, Previous 7 Days, Older).
-     - Workspace / Project section with quick switcher and project creation.
-     - Account / Auth status row at the bottom with sign in / sign out and settings access.
-
-3. **Message Presentation & Fluid Stream:**
-   - **User Message:** Crisp right-aligned rounded bubble (`RoundedCornerShape(18.dp)`) in elevated slate (`#2D3139`), white clean text.
-   - **Assistant Message:** Directly rendered on the canvas (no heavy bounding box), clean typography, crisp markdown formatting, subtle Antigravity avatar at the start.
-   - **Collapsible Agent Activities:** Sleek accordion pills for internal agent thoughts (`Thought for 3s ▾`) and tool runs (`Ran bash: git status ▾`) that keep the transcript readable and expand on demand.
-   - **Approval & Diff Cards:** Modern, compact cards with native rounded borders and high-contrast actions.
-
-4. **Floating Capsule Composer:**
-   - Floating pill (`RoundedCornerShape(26.dp)`) elevated over the canvas.
-   - Left: `+` Action button opening quick skills/tools menu (git status, run tests, review diffs).
-   - Center: Auto-expanding multi-line text input ("Message Antigravity...").
-   - Right: Circular action button:
-     - Mic icon when input is empty.
-     - Solid circular Up-Arrow Send button when text is entered.
-     - Solid circular Stop button when agent is executing.
-
-5. **Minimal Empty State (Welcome Screen):**
-   - Centered subtle Antigravity emblem.
-   - Warm greeting: "What can I help you build?"
-   - 3-4 clean suggestion prompt pills (e.g., "Run git status & diffs", "Analyze project structure", "Search phone storage").
-
-## Locked Architectural Decisions
-- Architecture: Compose Material3 `ModalNavigationDrawer` wrapping `Scaffold` with custom TopAppBar and floating InputBar.
-- Styling: Authentic Antigravity dark theme (`#131314`, `#1E1F22`, `#2B2D31`) with refined typography.
-- Backwards Compatibility: Preserve all existing ViewModel hooks, speech recognition, foreground service bindings, approval flows, tool calls, and storage permissions.
+- **Workspace as Any Accessible Path:** Workspaces are no longer restricted to internal `workspaces/` folders. Any valid folder on internal storage (`/storage/emulated/0/...`) can be an active workspace if storage permission (`MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`) is granted.
+- **SAF Directory Selection:** The user can tap "Open Device Folder" in the navigation drawer, which launches the Android System Folder Picker (`ACTION_OPEN_DOCUMENT_TREE`) or taps quick shortcuts (Downloads, Documents, Storage Root). The resolved path is passed to `WorkspaceManager` and `AgyViewModel`.
+- **Session-Workspace Binding:** Each chat session records `workspacePath`. Resuming a chat immediately activates its bound folder; switching folders creates/switches the context for future turns.
+- **Bulletproof Bash Resolution:**
+  - `BootstrapManager` initializes an environment profile (`~/.gemini/shell_env.sh`) configured via `BASH_ENV` and `ENV`. It exports a shell function `bash() { "$SHELL" "$@"; }` so any command running `bash ...` resolves directly to `libbash.so` inside the shell without needing a forbidden binary in `binDir`.
+  - System rule in `~/.gemini/rules/system-android.md` informs the model that `run_command` is the tool to use for shell operations on Android, preventing hallucinatory calls to an uncallable `bash` tool.
 
 ## Verification & Backpressure Seams
-- Unit Tests: `./gradlew test` passes all tests in `BootstrapManagerTest`, `AgyViewModelTest`, and UI component tests.
-- Build & Assembly: `./gradlew assembleDebug` successfully produces `android/app/build/outputs/apk/debug/app-debug.apk`.
-- Packaging: Export updated `android/agy-mobile-debug.apk`.
+- Unit Tests: `./gradlew test`
+- Build: `./gradlew assembleDebug`
+- Verification of test suites for `WorkspaceManagerTest`, `BootstrapManagerTest`, and `AgyProcessEngineTest`.

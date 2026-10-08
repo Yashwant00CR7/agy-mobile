@@ -12,6 +12,11 @@ class BootstrapManager(
     val homeDir: File = File(baseDir, "home")
     val tmpDir: File = File(baseDir, "tmp")
     val defaultWorkspaceDir: File = File(baseDir, "workspaces")
+    val geminiDir: File = File(homeDir, ".gemini")
+    val agyCliDir: File = File(geminiDir, "antigravity-cli")
+    val gcloudDir: File = File(File(homeDir, ".config"), "gcloud")
+
+    fun getShellEnvFile(): File = File(geminiDir, "shell_env.sh")
 
     fun initializeDirectories(): Boolean {
         val created = binDir.mkdirs() or
@@ -43,7 +48,7 @@ class BootstrapManager(
             }
         } catch (_: Exception) {}
 
-        setupShellLinks()
+        setupShellEnvironment()
         syncExistingCredentials()
         return created
     }
@@ -212,6 +217,62 @@ class BootstrapManager(
         } catch (_: Exception) {}
     }
 
+    fun setupShellEnvironment() {
+        setupShellLinks()
+        val shell = getShellExecutable()
+        val envFile = getShellEnvFile()
+        try {
+            envFile.parentFile?.mkdirs()
+            val content = """
+                #!/system/bin/sh
+                # agy-mobile environment initialization
+                export SHELL="${'$'}{SHELL:-${shell.absolutePath}}"
+
+                # Wrapper function so invocations of 'bash' resolve cleanly to libbash.so
+                bash() {
+                    "${'$'}SHELL" "${'$'}@"
+                }
+                export -f bash 2>/dev/null || true
+                alias bash='"${'$'}SHELL"'
+                alias sh='/system/bin/sh'
+            """.trimIndent()
+            envFile.writeText(content)
+            envFile.setReadable(true, false)
+            envFile.setExecutable(true, false)
+        } catch (_: Exception) {}
+
+        // Also write a fallback wrapper script in binDir/bash if possible
+        try {
+            val bashScript = File(binDir, "bash")
+            if (!bashScript.exists()) {
+                val scriptContent = """
+                    #!/system/bin/sh
+                    exec "${shell.absolutePath}" "${'$'}@"
+                """.trimIndent()
+                bashScript.writeText(scriptContent)
+                bashScript.setReadable(true, false)
+                bashScript.setExecutable(true, false)
+            }
+        } catch (_: Exception) {}
+
+        // Ensure rules directory and android-runtime rule
+        try {
+            val rulesDir = File(geminiDir, "rules")
+            rulesDir.mkdirs()
+            val ruleFile = File(rulesDir, "android-runtime.md")
+            if (!ruleFile.exists() || ruleFile.length() == 0L) {
+                ruleFile.writeText(
+                    """
+                    # Android Environment & Shell Execution Policy
+                    - **Shell Execution**: You are running in an Android ARM64 native environment. The native shell is configured via `${'$'}SHELL` (${shell.name}).
+                    - **Command Tooling**: When executing terminal or shell commands, ALWAYS call the official `run_command` tool. NEVER call a tool named `bash`, `sh`, or `execute_command` directly because those names are not callable in this runtime.
+                    - **Environment**: Subshells and scripts inherit `${'$'}SHELL` and `${'$'}BASH_ENV`.
+                    """.trimIndent()
+                )
+            }
+        } catch (_: Exception) {}
+    }
+
     fun getEnvironmentVariables(): Map<String, String> {
         val pathBuilder = StringBuilder()
         if (nativeLibDir != null) {
@@ -226,6 +287,10 @@ class BootstrapManager(
         }
 
         val shellExecutable = getShellExecutable()
+        val shellEnvFile = getShellEnvFile()
+        if (!shellEnvFile.exists()) {
+            setupShellEnvironment()
+        }
 
         val env = mutableMapOf(
             "SHELL" to shellExecutable.absolutePath,
@@ -239,6 +304,11 @@ class BootstrapManager(
             "XDG_CONFIG_HOME" to File(homeDir, ".config").absolutePath,
             "XDG_CACHE_HOME" to File(homeDir, ".cache").absolutePath
         )
+
+        if (shellEnvFile.exists()) {
+            env["BASH_ENV"] = shellEnvFile.absolutePath
+            env["ENV"] = shellEnvFile.absolutePath
+        }
 
         if (nativeLibDir != null) {
             env["LD_LIBRARY_PATH"] = nativeLibDir.absolutePath
@@ -257,10 +327,6 @@ class BootstrapManager(
 
         return env
     }
-
-    val geminiDir: File = File(homeDir, ".gemini")
-    val agyCliDir: File = File(geminiDir, "antigravity-cli")
-    val gcloudDir: File = File(File(homeDir, ".config"), "gcloud")
 
     fun getOauthCredsFile(): File = File(geminiDir, "oauth_creds.json")
     fun getGoogleAccountsFile(): File = File(geminiDir, "google_accounts.json")

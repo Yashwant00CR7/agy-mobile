@@ -16,18 +16,17 @@
 
 ### Milestone v1.4.0: Context Minimization & In-App Reasoning Effort Control
 *Goal:* Drastically cut system prompt context overhead by moving to a Lean Skills profile, and introduce an interactive in-app reasoning effort selector bar for live performance testing.
-
-#### Phases
 - [x] **Phase 04: Context Minimization & In-App Reasoning Effort Control** (Completed)
-  - **Goal:** Move 70+ non-essential skills to on-demand library so input tokens drop from 20k to <1k, implement an interactive effort selector bar (`Low ⚡`, `Medium ⚖️`, `High 🧠`) in the UI, and connect it to `AgyProcessEngine`.
-  - **Requirements Addressed:** REQ-20, REQ-21, REQ-22, REQ-23.
-  - **Success Criteria:** Input tokens drop significantly, user can switch effort dynamically from within the app, tests pass, APK builds cleanly.
 
 ### Milestone v1.5.0: Model Conflict Resolution & Persistent Stream-JSON Daemon
 *Goal:* Completely eliminate model selection and effort collision crashes, and run turns with sub-second response times using a persistent stream-json background process.
+- [x] **Phase 05: Model Conflict Resolution & Persistent Stream-JSON Daemon** (Completed)
+
+### Milestone v1.6.0: Local Device Folder Workspaces & Native Bash Execution Hardening
+*Goal:* Enable users to open chats directly in any local device directory via Android SAF picker and quick drawer shortcuts, and harden native bash execution so bash calls never fail with "not callable" or errno 13.
 
 #### Phases
-- [x] **Phase 05: Model Conflict Resolution & Persistent Stream-JSON Daemon** (Completed)
-  - **Goal:** Strict base-model mapping with effort flag omission for fixed-tier models, persistent `libagy.so` daemon keeping stdin open to slash turn latency from 14s to ~1-2s, and UI effort synchronization.
-  - **Requirements Addressed:** REQ-24, REQ-25, REQ-26, REQ-27.
-  - **Success Criteria:** Gemini 3.1 Pro and Claude run without CLI effort crashes, turns 2+ stream in under 2 seconds, all tests pass, and APK is verified.
+- [ ] **Phase 06: Local Device Folder Workspaces & Native Bash Execution Hardening**
+  - **Goal:** Add SAF folder picker and drawer shortcuts for local directories (`Downloads`, `Documents`, `/storage/emulated/0`), bind chat workspaces directly to local paths, configure `BASH_ENV` and shell aliases in `BootstrapManager` to resolve `bash` to `libbash.so` cleanly, and add model rules against uncallable `bash` tool hallucination.
+  - **Requirements Addressed:** REQ-28, REQ-29, REQ-30, REQ-31.
+  - **Success Criteria:** User can pick any phone folder to open/bind chats; bash commands execute reliably without error 13; tests pass and APK compiles.

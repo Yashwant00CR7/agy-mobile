@@ -238,6 +238,40 @@ class BootstrapManagerTest {
     }
 
     @Test
+    fun testShellEnvironmentVariablesIncludeBashEnvAndEnv() {
+        val root = tempFolder.newFolder("app_files_env")
+        val nativeDir = tempFolder.newFolder("native_lib_env")
+        val libBash = File(nativeDir, "libbash.so")
+        libBash.writeText("#!/bin/sh\necho bash")
+        libBash.setExecutable(true)
+
+        val manager = BootstrapManager(root, nativeDir)
+        manager.initializeDirectories()
+
+        val env = manager.getEnvironmentVariables()
+        assertTrue(env.containsKey("BASH_ENV"))
+        assertTrue(env.containsKey("ENV"))
+        val shellEnv = File(env["BASH_ENV"]!!)
+        assertTrue(shellEnv.exists())
+        val scriptContent = shellEnv.readText()
+        assertTrue(scriptContent.contains("bash()"))
+        assertTrue(scriptContent.contains("SHELL"))
+    }
+
+    @Test
+    fun testAndroidRuntimeRuleCreated() {
+        val root = tempFolder.newFolder("app_files_rule")
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
+
+        val ruleFile = File(manager.geminiDir, "rules/android-runtime.md")
+        assertTrue(ruleFile.exists())
+        val ruleContent = ruleFile.readText()
+        assertTrue(ruleContent.contains("run_command"))
+        assertTrue(ruleContent.contains("Android"))
+    }
+
+    @Test
     fun testExtractBundledAssets() {
         val root = tempFolder.newFolder("app_files_assets")
         val manager = BootstrapManager(root)
