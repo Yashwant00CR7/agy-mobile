@@ -116,4 +116,20 @@ class WorkspaceManagerTest {
         assertEquals(phoneFolder.absolutePath, restartedManager.getLastWorkspacePath())
         assertEquals(phoneFolder.absolutePath, restartedManager.getInitialWorkspace().absolutePath)
     }
+
+    @Test
+    fun testDisplayNameAndStorageCheck() {
+        val rootPath = WorkspaceManager.getPrimaryStoragePath()
+        val rootFile = File(rootPath)
+        assertEquals("Storage Root", WorkspaceManager.getDisplayName(rootFile))
+        assertEquals("Storage Root", WorkspaceManager.getDisplayName(File("/storage/emulated/0")))
+
+        val download = File(rootPath, "Download")
+        assertEquals("Download", WorkspaceManager.getDisplayName(download))
+
+        assertTrue(WorkspaceManager.isExternalStoragePath("/storage/emulated/0/Download"))
+        assertTrue(WorkspaceManager.isExternalStoragePath("/sdcard/Download"))
+        assertFalse(WorkspaceManager.isExternalStoragePath("/data/user/0/com.yashwant.agymobile/files"))
+        assertFalse(WorkspaceManager.isExternalStoragePath(null))
+    }
 }

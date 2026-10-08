@@ -19,6 +19,7 @@ import androidx.compose.material3.rememberDrawerState
 import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.service.AgyAgentService
 import com.yashwant.agymobile.ui.components.AuthBottomSheet
+import com.yashwant.agymobile.ui.components.DeviceFolderPickerModal
 import com.yashwant.agymobile.ui.drawers.ChatGptDrawer
 import com.yashwant.agymobile.ui.screens.ChatScreen
 import com.yashwant.agymobile.ui.theme.AgyTheme
@@ -88,9 +89,20 @@ class MainActivity : ComponentActivity() {
                 val coroutineScope = rememberCoroutineScope()
                 var showFolderPickerModal by remember { mutableStateOf(false) }
 
+                var hasStorage by remember { mutableStateOf(hasStoragePermission()) }
+                val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                DisposableEffect(lifecycleOwner) {
+                    val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                        if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                            hasStorage = hasStoragePermission()
+                        }
+                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
+
                 val workspaceDir = File(workspaceInfo.currentPath)
-                val workspaceName = workspaceDir.name.ifBlank { "Workspace" }
-                val hasStorage = hasStoragePermission()
+                val workspaceName = WorkspaceManager.getDisplayName(workspaceDir)
 
                 ModalNavigationDrawer(
                     drawerState = drawerState,
@@ -100,10 +112,10 @@ class MainActivity : ComponentActivity() {
                             workspaceInfo = workspaceInfo,
                             conversations = conversations,
                             onSelectDirectory = { dir ->
-                                if (dir.absolutePath.startsWith("/storage/") && !hasStoragePermission()) {
+                                if (WorkspaceManager.isExternalStoragePath(dir.absolutePath) && !hasStoragePermission()) {
                                     requestStoragePermission()
                                 }
-                                viewModel.selectWorkspace(dir)
+                                viewModel.selectWorkspace(dir, notify = true)
                                 closeDrawer()
                             },
                             onCreateProject = { name ->
@@ -176,13 +188,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 if (showFolderPickerModal) {
-                    com.yashwant.agymobile.ui.components.DeviceFolderPickerModal(
+                    DeviceFolderPickerModal(
                         initialDirectory = workspaceDir,
                         onSelectDirectory = { dir ->
-                            if (dir.absolutePath.startsWith("/storage/") && !hasStoragePermission()) {
+                            if (WorkspaceManager.isExternalStoragePath(dir.absolutePath) && !hasStoragePermission()) {
                                 requestStoragePermission()
                             }
-                            viewModel.selectWorkspace(dir)
+                            viewModel.selectWorkspace(dir, notify = true)
                             showFolderPickerModal = false
                         },
                         onDismiss = { showFolderPickerModal = false },

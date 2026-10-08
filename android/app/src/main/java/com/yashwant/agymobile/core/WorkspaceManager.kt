@@ -179,6 +179,30 @@ class WorkspaceManager(
             }
             return null
         }
+
+        fun isExternalStoragePath(path: String?): Boolean {
+            if (path == null) return false
+            return path.startsWith("/storage/") || path.startsWith("/sdcard")
+        }
+
+        fun getDisplayName(dir: File): String {
+            val path = dir.absolutePath
+            val primary = getPrimaryStoragePath()
+            if (path == primary || path == "/storage/emulated/0" || dir.name == "0") {
+                return "Storage Root"
+            }
+            return dir.name.ifBlank { "Workspace" }
+        }
+    }
+
+    fun getLastWorkspace(): File? {
+        val path = getLastWorkspacePath() ?: return null
+        val file = File(path)
+        return if (file.exists() && file.isDirectory) file else null
+    }
+
+    fun saveLastWorkspace(dir: File) {
+        saveLastWorkspacePath(dir.absolutePath)
     }
 
     fun getRecentConversations(limit: Int = 20): List<ConversationItem> {

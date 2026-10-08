@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import com.yashwant.agymobile.core.ConversationItem
 import com.yashwant.agymobile.core.DeviceShortcut
 import com.yashwant.agymobile.core.WorkspaceInfo
+import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.model.AuthState
 import com.yashwant.agymobile.ui.theme.*
 import java.io.File
@@ -147,7 +149,7 @@ fun ChatGptDrawer(
 
             // 3. Workspace Status / Switcher Bar
             val currentDir = File(workspaceInfo.currentPath)
-            val currentDirName = currentDir.name.ifBlank { "Workspace" }
+            val currentDirName = WorkspaceManager.getDisplayName(currentDir)
             Surface(
                 onClick = { showWorkspaceBrowser = !showWorkspaceBrowser },
                 color = AntigravitySurfaceElevated,
@@ -171,7 +173,7 @@ fun ChatGptDrawer(
                             modifier = Modifier.size(16.dp)
                         )
                         Column {
-                            val isExternal = currentDir.absolutePath.startsWith("/storage/") || currentDir.absolutePath.startsWith("/sdcard")
+                            val isExternal = WorkspaceManager.isExternalStoragePath(currentDir.absolutePath)
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = currentDirName,
@@ -202,12 +204,25 @@ fun ChatGptDrawer(
                             }
                         }
                     }
-                    Icon(
-                        imageVector = if (showWorkspaceBrowser) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = "Expand Workspaces",
-                        tint = TextSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = onOpenFolderPicker,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = "Choose Device Folder",
+                                tint = AntigravityBlue,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Icon(
+                            imageVector = if (showWorkspaceBrowser) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = "Expand Workspaces",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
@@ -220,23 +235,27 @@ fun ChatGptDrawer(
                         .clip(RoundedCornerShape(10.dp))
                         .background(AntigravitySurface)
                         .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Open Device Folder via System SAF Picker
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onOpenFolderPicker() }
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    // Prominent Device Folder Action Card
+                    Surface(
+                        onClick = onOpenFolderPicker,
+                        color = AntigravityBlue.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityBlue.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                         ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = AntigravityBlue, modifier = Modifier.size(16.dp))
-                            Text("Open Device Folder...", color = AntigravityBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.FolderSpecial, contentDescription = null, tint = AntigravityBlue, modifier = Modifier.size(18.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Choose Device Folder", color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("Browse phone storage & SD card directly", color = TextMuted, fontSize = 10.sp)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = AntigravityBlue, modifier = Modifier.size(16.dp))
                         }
                     }
 

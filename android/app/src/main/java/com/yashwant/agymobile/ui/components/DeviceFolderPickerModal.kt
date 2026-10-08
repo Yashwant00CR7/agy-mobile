@@ -245,7 +245,7 @@ fun DeviceFolderPickerModal(
                 }
             }
 
-            // Path Breadcrumb & Up Navigation
+            // Path Breadcrumb & Up Navigation with Clickable Segments
             Surface(
                 color = AntigravitySurfaceElevated,
                 shape = RoundedCornerShape(10.dp),
@@ -255,7 +255,7 @@ fun DeviceFolderPickerModal(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                 ) {
                     val parent = currentDir.parentFile
                     val canGoUp = parent != null && parent.exists() && parent.canRead() &&
@@ -273,26 +273,58 @@ fun DeviceFolderPickerModal(
                                 modifier = Modifier.size(16.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(4.dp))
                     } else {
                         Icon(
                             imageVector = Icons.Default.Folder,
                             contentDescription = null,
                             tint = AntigravityBlue,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier
+                                .padding(start = 4.dp, end = 4.dp)
+                                .size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
                     }
 
-                    Text(
-                        text = currentDir.absolutePath,
-                        color = TextPrimary,
-                        fontSize = 12.sp,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
-                    )
+                    // Clickable breadcrumb segments
+                    val segments = remember(currentDir) {
+                        val segList = mutableListOf<Pair<String, File>>()
+                        var curr: File? = currentDir
+                        while (curr != null) {
+                            val name = WorkspaceManager.getDisplayName(curr)
+                            segList.add(0, Pair(name, curr))
+                            if (curr.absolutePath == "/storage/emulated/0" || curr.absolutePath == "/storage" || curr.parentFile == null) break
+                            curr = curr.parentFile
+                        }
+                        segList
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .horizontalScroll(rememberScrollState()),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        segments.forEachIndexed { idx, (name, file) ->
+                            val isLast = idx == segments.lastIndex
+                            Text(
+                                text = name,
+                                color = if (isLast) TextPrimary else AntigravityBlue,
+                                fontSize = 12.sp,
+                                fontWeight = if (isLast) FontWeight.Bold else FontWeight.Medium,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .clickable(enabled = !isLast) { currentDir = file }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                            if (!isLast) {
+                                Text(
+                                    text = "/",
+                                    color = TextMuted,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.padding(horizontal = 1.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
 
@@ -445,7 +477,7 @@ fun DeviceFolderPickerModal(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Select \"${currentDir.name.ifBlank { "Root" }}\"",
+                            text = "Select \"${WorkspaceManager.getDisplayName(currentDir)}\"",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -459,31 +491,44 @@ fun DeviceFolderPickerModal(
 
     // Dialog for creating a new subfolder in the current directory
     if (showCreateFolderDialog) {
+        var folderCreationError by remember { mutableStateOf<String?>(null) }
+
         AlertDialog(
-            onDismissRequest = { showCreateFolderDialog = false },
+            onDismissRequest = {
+                showCreateFolderDialog = false
+                folderCreationError = null
+            },
             title = {
                 Text(
-                    text = "Create Folder in ${currentDir.name.ifBlank { "Root" }}",
+                    text = "Create Folder in ${WorkspaceManager.getDisplayName(currentDir)}",
                     color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
-                OutlinedTextField(
-                    value = newFolderName,
-                    onValueChange = { newFolderName = it },
-                    placeholder = { Text("Folder name (e.g., MyAgyProject)") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary,
-                        focusedBorderColor = AntigravityBlue,
-                        unfocusedBorderColor = AntigravityBorder,
-                        focusedContainerColor = AntigravitySurface,
-                        unfocusedContainerColor = AntigravitySurface
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = {
+                            newFolderName = it
+                            folderCreationError = null
+                        },
+                        placeholder = { Text("Folder name (e.g., MyAgyProject)") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = AntigravityBlue,
+                            unfocusedBorderColor = AntigravityBorder,
+                            focusedContainerColor = AntigravitySurface,
+                            unfocusedContainerColor = AntigravitySurface
+                        )
                     )
-                )
+                    folderCreationError?.let { err ->
+                        Text(text = err, color = CrimsonDanger, fontSize = 11.sp)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -491,12 +536,15 @@ fun DeviceFolderPickerModal(
                         val name = newFolderName.trim()
                         if (name.isNotBlank()) {
                             val newDir = File(currentDir, name)
-                            newDir.mkdirs()
-                            newFolderName = ""
-                            showCreateFolderDialog = false
-                            refreshKey++
-                            if (newDir.exists()) {
+                            val ok = try { newDir.mkdirs() || newDir.exists() } catch (_: Exception) { false }
+                            if (ok) {
+                                newFolderName = ""
+                                folderCreationError = null
+                                showCreateFolderDialog = false
+                                refreshKey++
                                 currentDir = newDir
+                            } else {
+                                folderCreationError = "Could not create directory. Check storage permissions."
                             }
                         }
                     }
@@ -505,7 +553,10 @@ fun DeviceFolderPickerModal(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateFolderDialog = false }) {
+                TextButton(onClick = {
+                    showCreateFolderDialog = false
+                    folderCreationError = null
+                }) {
                     Text("Cancel", color = TextSecondary)
                 }
             },

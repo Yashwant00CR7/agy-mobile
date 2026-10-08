@@ -145,9 +145,16 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         _isVoiceRecording.value = recording
     }
 
-    fun selectWorkspace(directory: File) {
+    fun selectWorkspace(directory: File, notify: Boolean = false) {
+        val prevPath = _workspaceInfo.value.currentPath
         _workspaceInfo.value = workspaceManager.getWorkspaceInfo(directory)
         workspaceManager.saveLastWorkspacePath(directory.absolutePath)
+        if (notify && prevPath != directory.absolutePath) {
+            _messages.value = _messages.value + ChatMessage(
+                role = MessageRole.SYSTEM,
+                content = "Workspace switched to: ${directory.absolutePath}"
+            )
+        }
     }
 
     fun createProject(name: String) {
