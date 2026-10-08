@@ -1,18 +1,17 @@
 # GSD Project State
 
-**Active Milestone:** v1.2.0
-**Current Phase:** Phase 02 - ChatGPT-Standard Mobile UI & UX Architecture Overhaul
+**Active Milestone:** v1.3.0
+**Current Phase:** Phase 03 - Latency Optimization, Folder-Wise Context Scoping, Session Persistence & Keyboard IME Fix
 **Status:** Complete
-**Last Updated:** 2026-10-08 14:47:00
+**Last Updated:** 2026-10-08 15:16:00
 
-## Active Decisions & Constraints
-- Full ChatGPT mobile UX flow delivered: left sliding `ModalNavigationDrawer`, centered model dropdown pill in top bar, fluid message canvas, and floating capsule composer with circular send/stop button.
-- Authentic Antigravity dark aesthetic applied: `#131314` canvas, `#1E1F22` surfaces, `#2B2D31` bubbles, delicate `#4E80EE` accents; zero neon border clutter or diagnostic matrix boxes.
-- Collapsible accordion pills for reasoning thoughts and tool actions.
-- All core engine connections, service bindings, unit tests, and debug APK packaging verified.
+## User Directives & Decisions
+- **Turn Latency & Scoping**: Scope agent execution strictly to folder-wise context (`workspaceDir`), preventing wide device-level context traversal. Default model configured to `Gemini 3.8 Flash (Medium Effort)` for rapid streaming, paired with an instant pulsing "Antigravity is thinking..." indicator.
+- **Session Persistence**: Auto-save all conversations locally to `filesDir/conversations/<id>.json`. Start with a fresh clean "New Chat" on app launch. Restore full chat history and workspace when selecting any session from the drawer.
+- **Keyboard IME & Layout**: Apply `imePadding()` to `ChatGptComposer` so the input field floats securely above the software keyboard without occlusion, and auto-scroll `LazyColumn` to bottom on keyboard display.
 
 ## Current Position
-- Phase: 02-chatgpt-ui-overhaul
+- Phase: 03-perf-persistence-ime
 - Total Plans: 1
 - Completed Plans: 1
-- Next Action: Ready for User Testing & Deployment
+- Next Action: Milestone Complete - Ready for deployment & testing

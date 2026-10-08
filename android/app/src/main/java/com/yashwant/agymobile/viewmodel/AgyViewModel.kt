@@ -33,9 +33,11 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _showAuthSheet = MutableStateFlow(false)
     val showAuthSheet: StateFlow<Boolean> = _showAuthSheet.asStateFlow()
 
+    val conversationRepository = com.yashwant.agymobile.core.ConversationRepository(application.filesDir)
+
     val availableModels = listOf(
-        "Gemini 3.8 Flash (High)",
         "Gemini 3.8 Flash (Medium)",
+        "Gemini 3.8 Flash (High)",
         "Gemini 3.7 Flash (High)",
         "Gemini 3.1 Pro (High)",
         "Claude Sonnet 4.6 (Thinking)"
@@ -75,7 +77,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _workspaceInfo = MutableStateFlow(workspaceManager.getWorkspaceInfo())
     val workspaceInfo: StateFlow<WorkspaceInfo> = _workspaceInfo.asStateFlow()
 
-    private val _conversations = MutableStateFlow(workspaceManager.getRecentConversations())
+    private val _conversations = MutableStateFlow<List<ConversationItem>>(emptyList())
     val conversations: StateFlow<List<ConversationItem>> = _conversations.asStateFlow()
 
     private val _isVoiceRecording = MutableStateFlow(false)
@@ -86,9 +88,38 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     init {
         bootstrapManager.initializeDirectories()
         bootstrapManager.setupAgyFromNativeLib()
+        refreshConversations()
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             bootstrapManager.extractAssetsFromContext(application)
         }
+    }
+
+    fun refreshConversations() {
+        val repoList = conversationRepository.listConversations()
+        val wsList = workspaceManager.getRecentConversations()
+        val combined = (repoList + wsList).distinctBy { it.id }.sortedByDescending { it.lastModified }
+        _conversations.value = combined
+    }
+
+    fun saveCurrentSession() {
+        val msgs = _messages.value
+        val convId = activeConversationId
+        if (msgs.isEmpty() || convId.isNullOrBlank()) return
+
+        val firstUserMsg = msgs.firstOrNull { it.role == MessageRole.USER }?.content
+        val title = firstUserMsg?.take(60)?.replace("\n", " ") ?: "Session ${convId.take(8)}"
+
+        conversationRepository.saveConversation(
+            ConversationSession(
+                id = convId,
+                title = title,
+                workspacePath = _workspaceInfo.value.currentPath,
+                model = _selectedModel.value,
+                updatedAt = System.currentTimeMillis(),
+                messages = msgs
+            )
+        )
+        refreshConversations()
     }
 
     fun onPromptChange(newText: String) {
@@ -113,11 +144,29 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resumeConversation(convId: String) {
-        activeConversationId = convId
-        _messages.value = _messages.value + ChatMessage(
-            role = MessageRole.ASSISTANT,
-            content = "Resumed session $convId"
-        )
+        saveCurrentSession()
+        val session = conversationRepository.loadConversation(convId)
+        if (session != null) {
+            activeConversationId = session.id
+            _messages.value = session.messages
+            session.workspacePath?.let { path ->
+                val dir = File(path)
+                if (dir.exists()) {
+                    selectWorkspace(dir)
+                }
+            }
+            session.model?.let { mod ->
+                if (mod.isNotBlank()) _selectedModel.value = mod
+            }
+        } else {
+            activeConversationId = convId
+            _messages.value = listOf(
+                ChatMessage(
+                    role = MessageRole.ASSISTANT,
+                    content = "Resumed session $convId"
+                )
+            )
+        }
     }
 
     private var eventsCollectionJob: kotlinx.coroutines.Job? = null
@@ -164,6 +213,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearChat() {
+        saveCurrentSession()
         _messages.value = emptyList()
         activeConversationId = null
     }
@@ -234,9 +284,14 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        if (activeConversationId == null) {
+            activeConversationId = java.util.UUID.randomUUID().toString()
+        }
+
         _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
         _promptText.value = ""
         _isRunning.value = true
+        saveCurrentSession()
 
         val agyExe = bootstrapManager.getAgyExecutable()
         val engine = service?.engine
@@ -268,6 +323,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     content = reason
                 )
                 _isRunning.value = false
+                saveCurrentSession()
             }
         }
     }
@@ -280,7 +336,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             }
             is AgyEvent.TurnStart -> {
                 _isRunning.value = true
-                event.conversationId?.let { activeConversationId = it }
+                if (!event.conversationId.isNullOrBlank()) {
+                    activeConversationId = event.conversationId
+                }
             }
             is AgyEvent.Thought -> {
                 val current = _messages.value
@@ -327,8 +385,10 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             }
             is AgyEvent.TurnComplete -> {
                 _isRunning.value = false
-                event.conversationId?.let { activeConversationId = it }
-                _conversations.value = workspaceManager.getRecentConversations()
+                if (!event.conversationId.isNullOrBlank()) {
+                    activeConversationId = event.conversationId
+                }
+                saveCurrentSession()
             }
             is AgyEvent.Error -> {
                 _messages.value = _messages.value + ChatMessage(
@@ -336,10 +396,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     content = event.message
                 )
                 _isRunning.value = false
+                saveCurrentSession()
             }
             is AgyEvent.Status -> {
                 if (event.status == AgentStatus.IDLE) {
                     _isRunning.value = false
+                    saveCurrentSession()
                 }
             }
             else -> {}
@@ -349,6 +411,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun cancel(service: AgyAgentService? = null) {
         service?.engine?.cancel()
         _isRunning.value = false
+        saveCurrentSession()
     }
 
     fun resolveApproval(callId: String, approved: Boolean, service: AgyAgentService? = null) {

@@ -65,4 +65,20 @@ class ChatComponentTest {
         assertEquals(0x13, (AntigravityDarkBg.green * 255).toInt())
         assertEquals(0x14, (AntigravityDarkBg.blue * 255).toInt())
     }
+
+    @Test
+    fun testConversationItemWithWorkspaceMetadata() {
+        val item = ConversationItem(
+            id = "conv-xyz",
+            lastModified = 5000L,
+            snippet = "Refactor auth",
+            workspacePath = "/sdcard/workspaces/FinanceApp",
+            messageCount = 12
+        )
+        assertEquals("conv-xyz", item.id)
+        assertEquals(5000L, item.lastModified)
+        assertEquals("Refactor auth", item.snippet)
+        assertEquals("/sdcard/workspaces/FinanceApp", item.workspacePath)
+        assertEquals(12, item.messageCount)
+    }
 }

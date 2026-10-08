@@ -245,22 +245,26 @@ class AgyProcessEngine(
             val effort = when {
                 !request.effort.isNullOrBlank() -> request.effort
                 modelSlug.endsWith("-high") -> "high"
-                modelSlug.endsWith("-medium") -> "medium"
                 modelSlug.endsWith("-low") -> "low"
-                else -> null
+                modelSlug.endsWith("-medium") -> "medium"
+                else -> "medium"
             }
-            if (effort != null) {
-                args.add("--effort")
-                args.add(effort)
-            }
+            args.add("--effort")
+            args.add(effort)
 
             val processBuilder = ProcessBuilder(args)
+            val finalEnv = envVars.toMutableMap()
             if (request.workspaceDir != null) {
                 val dir = File(request.workspaceDir)
-                if (dir.exists()) processBuilder.directory(dir)
+                if (dir.exists()) {
+                    processBuilder.directory(dir)
+                }
+                finalEnv["ANTIGRAVITY_WORKSPACE_ROOT"] = request.workspaceDir
+                finalEnv["WORKSPACE_DIR"] = request.workspaceDir
+                finalEnv["PWD"] = request.workspaceDir
             }
 
-            processBuilder.environment().putAll(envVars)
+            processBuilder.environment().putAll(finalEnv)
 
             try {
                 val process = processBuilder.start()

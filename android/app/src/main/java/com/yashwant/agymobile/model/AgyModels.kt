@@ -31,6 +31,16 @@ data class ChatMessage(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+data class ConversationSession(
+    val id: String,
+    val title: String,
+    val workspacePath: String? = null,
+    val model: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis(),
+    val messages: List<ChatMessage> = emptyList()
+)
+
 sealed class AgyEvent {
     data class TurnStart(val conversationId: String?, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()
     data class Thought(val delta: String, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()

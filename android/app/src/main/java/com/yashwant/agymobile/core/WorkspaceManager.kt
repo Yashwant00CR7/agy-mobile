@@ -21,7 +21,9 @@ data class WorkspaceInfo(
 data class ConversationItem(
     val id: String,
     val lastModified: Long,
-    val snippet: String
+    val snippet: String,
+    val workspacePath: String? = null,
+    val messageCount: Int = 0
 )
 
 class WorkspaceManager(

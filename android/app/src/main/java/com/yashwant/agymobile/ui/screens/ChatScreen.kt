@@ -1,6 +1,7 @@
 package com.yashwant.agymobile.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.AnnotatedString
@@ -71,10 +73,28 @@ fun ChatScreen(
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
 
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
+
+    // Auto-scroll on keyboard popup
+    LaunchedEffect(imeBottom) {
+        if (imeBottom > 0 && messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
     // Auto-scroll on new messages
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(messages.size - 1)
+        }
+    }
+
+    // Auto-scroll during active stream generation
+    val lastContentLength = messages.lastOrNull()?.content?.length ?: 0
+    LaunchedEffect(lastContentLength) {
+        if (messages.isNotEmpty() && isRunning) {
+            listState.scrollToItem(messages.size - 1)
         }
     }
 
@@ -104,7 +124,9 @@ fun ChatScreen(
                     onPromptChange(action)
                     onSend()
                 },
-                modifier = Modifier.navigationBarsPadding()
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .imePadding()
             )
         }
     ) { innerPadding ->
@@ -443,6 +465,12 @@ fun ChatScreen(
                             }
                         }
                     }
+
+                    if (isRunning && (messages.isEmpty() || messages.lastOrNull()?.role == MessageRole.USER)) {
+                        item(key = "instant_thinking_indicator") {
+                            ThinkingIndicator()
+                        }
+                    }
                 }
             }
         }
@@ -575,6 +603,55 @@ private fun formatAnnotatedMarkdown(text: String): AnnotatedString {
         }
         if (cursor < text.length) {
             append(text.substring(cursor))
+        }
+    }
+}
+
+@Composable
+private fun ThinkingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition(label = "thinkingPulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(750, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    Surface(
+        color = AntigravitySurface,
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, AntigravityBorder),
+        modifier = Modifier.padding(vertical = 4.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(AntigravityBlue.copy(alpha = alpha * 0.25f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = AgyIcons.Logo,
+                    contentDescription = null,
+                    tint = AntigravityBlue.copy(alpha = alpha),
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+
+            Text(
+                text = "Antigravity is thinking...",
+                color = TextSecondary.copy(alpha = alpha),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }

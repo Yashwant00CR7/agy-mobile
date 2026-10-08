@@ -29,7 +29,7 @@ class BootstrapManager(
                 } else org.json.JSONObject()
 
                 if (!json.has("model")) {
-                    json.put("model", "gemini-3.8-flash-high")
+                    json.put("model", "gemini-3.8-flash-medium")
                 }
                 if (!json.has("agentMode")) {
                     json.put("agentMode", "accept-edits")
@@ -649,38 +649,40 @@ class BootstrapManager(
 
     companion object {
         fun toCanonicalModelSlug(nameOrId: String?): String {
-            val s = nameOrId?.trim() ?: return "gemini-3.8-flash-high"
+            val s = nameOrId?.trim() ?: return "gemini-3.8-flash-medium"
             return when {
-                s.contains("3.8 Flash (Medium)", ignoreCase = true) || s == "gemini-3.8-flash-medium" -> "gemini-3.8-flash-medium"
                 s.contains("3.8 Flash (Low)", ignoreCase = true) || s == "gemini-3.8-flash-low" -> "gemini-3.8-flash-low"
-                s.contains("3.8 Flash", ignoreCase = true) || s == "gemini-3.8-flash-high" -> "gemini-3.8-flash-high"
-                s.contains("3.7 Flash (Medium)", ignoreCase = true) || s == "gemini-3.7-flash-medium" -> "gemini-3.7-flash-medium"
+                s.contains("3.8 Flash (High)", ignoreCase = true) || s == "gemini-3.8-flash-high" -> "gemini-3.8-flash-high"
+                s.contains("3.8 Flash (Medium)", ignoreCase = true) || s.contains("3.8 Flash", ignoreCase = true) || s == "gemini-3.8-flash-medium" -> "gemini-3.8-flash-medium"
                 s.contains("3.7 Flash (Low)", ignoreCase = true) || s == "gemini-3.7-flash-low" -> "gemini-3.7-flash-low"
+                s.contains("3.7 Flash (Medium)", ignoreCase = true) || s == "gemini-3.7-flash-medium" -> "gemini-3.7-flash-medium"
                 s.contains("3.7 Flash", ignoreCase = true) || s == "gemini-3.7-flash-high" -> "gemini-3.7-flash-high"
                 s.contains("3.6 Flash", ignoreCase = true) || s == "gemini-3.6-flash-high" -> "gemini-3.6-flash-high"
                 s.contains("3.1 Pro", ignoreCase = true) || s.contains("3.1-pro", ignoreCase = true) -> "gemini-3.1-pro-high"
                 s.contains("Claude Sonnet 4.6", ignoreCase = true) || s == "claude-sonnet-4-6" -> "claude-sonnet-4-6"
                 s.contains("Claude Opus 4.6", ignoreCase = true) || s == "claude-opus-4-6-thinking" -> "claude-opus-4-6-thinking"
                 s.contains("GPT-OSS 120B", ignoreCase = true) || s == "gpt-oss-120b-medium" -> "gpt-oss-120b-medium"
-                else -> "gemini-3.8-flash-high"
+                s.contains("2.5 Flash", ignoreCase = true) -> "gemini-3.8-flash-medium"
+                else -> "gemini-3.8-flash-medium"
             }
         }
 
         fun toDisplayName(slugOrId: String?): String {
-            val s = slugOrId?.trim() ?: return "Gemini 3.8 Flash (High)"
+            val s = slugOrId?.trim() ?: return "Gemini 3.8 Flash (Medium)"
             return when {
-                s == "gemini-3.8-flash-high" || s.equals("Gemini 3.8 Flash (High)", ignoreCase = true) -> "Gemini 3.8 Flash (High)"
                 s == "gemini-3.8-flash-medium" || s.equals("Gemini 3.8 Flash (Medium)", ignoreCase = true) -> "Gemini 3.8 Flash (Medium)"
+                s == "gemini-3.8-flash-high" || s.equals("Gemini 3.8 Flash (High)", ignoreCase = true) -> "Gemini 3.8 Flash (High)"
                 s == "gemini-3.8-flash-low" || s.equals("Gemini 3.8 Flash (Low)", ignoreCase = true) -> "Gemini 3.8 Flash (Low)"
-                s == "gemini-3.7-flash-high" || s.equals("Gemini 3.7 Flash (High)", ignoreCase = true) -> "Gemini 3.7 Flash (High)"
                 s == "gemini-3.7-flash-medium" || s.equals("Gemini 3.7 Flash (Medium)", ignoreCase = true) -> "Gemini 3.7 Flash (Medium)"
+                s == "gemini-3.7-flash-high" || s.equals("Gemini 3.7 Flash (High)", ignoreCase = true) -> "Gemini 3.7 Flash (High)"
                 s == "gemini-3.7-flash-low" || s.equals("Gemini 3.7 Flash (Low)", ignoreCase = true) -> "Gemini 3.7 Flash (Low)"
                 s == "gemini-3.6-flash-high" || s.equals("Gemini 3.6 Flash (High)", ignoreCase = true) -> "Gemini 3.6 Flash (High)"
                 s == "gemini-3.1-pro-high" || s.contains("3.1 Pro", ignoreCase = true) || s.contains("3.1-pro", ignoreCase = true) -> "Gemini 3.1 Pro (High)"
                 s == "claude-sonnet-4-6" || s.contains("Claude Sonnet 4.6", ignoreCase = true) -> "Claude Sonnet 4.6 (Thinking)"
                 s == "claude-opus-4-6-thinking" || s.contains("Claude Opus 4.6", ignoreCase = true) -> "Claude Opus 4.6 (Thinking)"
                 s == "gpt-oss-120b-medium" || s.contains("GPT-OSS 120B", ignoreCase = true) -> "GPT-OSS 120B (Medium)"
-                else -> if (s.contains("(")) s else "Gemini 3.8 Flash (High)"
+                s.contains("2.5 Flash", ignoreCase = true) -> "Gemini 3.8 Flash (Medium)"
+                else -> if (s.contains("(")) s else "Gemini 3.8 Flash (Medium)"
             }
         }
     }

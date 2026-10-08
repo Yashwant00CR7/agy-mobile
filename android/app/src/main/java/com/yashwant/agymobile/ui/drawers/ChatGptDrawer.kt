@@ -489,9 +489,7 @@ private fun DrawerHistoryItem(
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 7.dp)
@@ -503,6 +501,36 @@ private fun DrawerHistoryItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            item.workspacePath?.let { path ->
+                if (path.isNotBlank()) {
+                    val folderName = File(path).name.ifBlank { "Workspace" }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Folder,
+                            contentDescription = null,
+                            tint = AntigravityBlue.copy(alpha = 0.8f),
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Text(
+                            text = folderName,
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (item.messageCount > 0) {
+                            Text(
+                                text = "• ${item.messageCount} msgs",
+                                color = TextMuted.copy(alpha = 0.7f),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -125,6 +125,10 @@ class BootstrapManagerTest {
         val manager = BootstrapManager(root)
         manager.initializeDirectories()
 
+        assertEquals("gemini-3.8-flash-medium", manager.getSelectedModel())
+        assertEquals("Gemini 3.8 Flash (Medium)", manager.getSelectedModelDisplayName())
+
+        assertTrue(manager.saveSelectedModel("Gemini 3.8 Flash (High)"))
         assertEquals("gemini-3.8-flash-high", manager.getSelectedModel())
         assertEquals("Gemini 3.8 Flash (High)", manager.getSelectedModelDisplayName())
 

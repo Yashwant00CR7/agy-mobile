@@ -27,16 +27,16 @@ data class ModelOption(
 
 val AvailableModelOptions = listOf(
     ModelOption(
-        id = "Gemini 3.8 Flash (High)",
-        name = "Gemini 3.8 Flash",
-        tag = "High Effort • Default",
-        description = "Recommended. Sub-second streaming with maximum tool calling accuracy."
-    ),
-    ModelOption(
         id = "Gemini 3.8 Flash (Medium)",
         name = "Gemini 3.8 Flash",
-        tag = "Medium Effort",
-        description = "Balanced reasoning with high execution speed."
+        tag = "Fast • Balanced (Default)",
+        description = "Recommended. Sub-second streaming with balanced reasoning."
+    ),
+    ModelOption(
+        id = "Gemini 3.8 Flash (High)",
+        name = "Gemini 3.8 Flash",
+        tag = "Deep Reasoning",
+        description = "Extended reasoning chain with maximum tool calling accuracy."
     ),
     ModelOption(
         id = "Gemini 3.7 Flash (High)",
