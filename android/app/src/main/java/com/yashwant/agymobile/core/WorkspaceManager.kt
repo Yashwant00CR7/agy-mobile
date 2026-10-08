@@ -26,6 +26,12 @@ data class ConversationItem(
     val messageCount: Int = 0
 )
 
+data class DeviceShortcut(
+    val label: String,
+    val iconKey: String,
+    val file: File
+)
+
 class WorkspaceManager(
     val rootWorkspaceDir: File,
     val brainDir: File = File(rootWorkspaceDir.parentFile, ".gemini/antigravity-cli/brain")
@@ -77,10 +83,36 @@ class WorkspaceManager(
         )
     }
 
-    fun createProject(name: String): File {
-        val projectDir = File(rootWorkspaceDir, name)
+    fun createProject(name: String, parentDir: File = rootWorkspaceDir): File {
+        val targetParent = if (parentDir.exists() && parentDir.isDirectory) parentDir else rootWorkspaceDir
+        val projectDir = File(targetParent, name)
         projectDir.mkdirs()
         return projectDir
+    }
+
+    fun getDeviceShortcuts(): List<DeviceShortcut> {
+        val shortcuts = mutableListOf<DeviceShortcut>()
+        try {
+            val extStorage = File("/storage/emulated/0")
+            if (extStorage.exists()) {
+                shortcuts.add(DeviceShortcut("Storage Root", "storage", extStorage))
+                val downloads = File(extStorage, "Download")
+                if (downloads.exists()) {
+                    shortcuts.add(DeviceShortcut("Downloads", "download", downloads))
+                }
+                val docs = File(extStorage, "Documents")
+                if (docs.exists()) {
+                    shortcuts.add(DeviceShortcut("Documents", "document", docs))
+                }
+            } else {
+                val home = System.getProperty("user.home")
+                if (home != null) {
+                    val userHome = File(home)
+                    shortcuts.add(DeviceShortcut("Home", "home", userHome))
+                }
+            }
+        } catch (_: Exception) {}
+        return shortcuts
     }
 
     fun getRecentConversations(limit: Int = 20): List<ConversationItem> {

@@ -52,4 +52,31 @@ class WorkspaceManagerTest {
         assertEquals("conv-abc-123", convs[0].id)
         assertEquals("Build native Android app", convs[0].snippet)
     }
+
+    @Test
+    fun testExternalDeviceWorkspace() {
+        val root = tempFolder.newFolder("workspaces")
+        val manager = WorkspaceManager(root)
+
+        val externalDeviceFolder = tempFolder.newFolder("external_sdcard", "Download", "MyProject")
+        File(externalDeviceFolder, "main.py").writeText("print('hello')")
+
+        val info = manager.getWorkspaceInfo(externalDeviceFolder)
+        assertEquals(externalDeviceFolder.absolutePath, info.currentPath)
+        assertEquals(1, info.items.size)
+        assertEquals("main.py", info.items[0].name)
+        assertFalse(info.items[0].isDirectory)
+
+        val sub = manager.createProject("submodule", externalDeviceFolder)
+        assertTrue(sub.exists())
+        assertEquals(File(externalDeviceFolder, "submodule").absolutePath, sub.absolutePath)
+    }
+
+    @Test
+    fun testGetDeviceShortcuts() {
+        val root = tempFolder.newFolder("workspaces")
+        val manager = WorkspaceManager(root)
+        val shortcuts = manager.getDeviceShortcuts()
+        assertNotNull(shortcuts)
+    }
 }

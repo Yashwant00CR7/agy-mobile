@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yashwant.agymobile.core.ConversationItem
+import com.yashwant.agymobile.core.DeviceShortcut
 import com.yashwant.agymobile.core.WorkspaceInfo
 import com.yashwant.agymobile.model.AuthState
 import com.yashwant.agymobile.ui.theme.*
@@ -41,6 +42,8 @@ fun ChatGptDrawer(
     onOpenAuth: () -> Unit,
     onSignOut: () -> Unit,
     onCloseDrawer: () -> Unit,
+    onOpenFolderPicker: () -> Unit = {},
+    deviceShortcuts: List<com.yashwant.agymobile.core.DeviceShortcut> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -168,14 +171,28 @@ fun ChatGptDrawer(
                             modifier = Modifier.size(16.dp)
                         )
                         Column {
-                            Text(
-                                text = currentDirName,
-                                color = TextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            val isExternal = currentDir.absolutePath.startsWith("/storage/") || currentDir.absolutePath.startsWith("/sdcard")
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = currentDirName,
+                                    color = TextPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (isExternal) {
+                                    Text(
+                                        text = "DEVICE",
+                                        color = AntigravityBlue,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .background(AntigravityBlue.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
+                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
                             workspaceInfo.gitBranch?.let { branch ->
                                 Text(
                                     text = "branch: $branch",
@@ -205,6 +222,54 @@ fun ChatGptDrawer(
                         .padding(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    // Open Device Folder via System SAF Picker
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onOpenFolderPicker() }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = AntigravityBlue, modifier = Modifier.size(16.dp))
+                            Text("Open Device Folder...", color = AntigravityBlue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+
+                    // Device Shortcuts (Downloads, Documents, Storage Root)
+                    if (deviceShortcuts.isNotEmpty()) {
+                        Text(
+                            text = "SHORTCUTS",
+                            color = TextMuted,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                        deviceShortcuts.forEach { shortcut ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelectDirectory(shortcut.file) }
+                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                            ) {
+                                val icon = when (shortcut.iconKey) {
+                                    "download" -> Icons.Default.Download
+                                    "document" -> Icons.Default.Description
+                                    else -> Icons.Default.PhoneAndroid
+                                }
+                                Icon(icon, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                                Text(shortcut.label, color = TextPrimary, fontSize = 12.sp)
+                            }
+                        }
+                        HorizontalDivider(color = AntigravityBorder, modifier = Modifier.padding(vertical = 4.dp))
+                    }
+
                     // Create Project Button
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -240,7 +305,7 @@ fun ChatGptDrawer(
                     }
 
                     // Directory items
-                    workspaceInfo.items.filter { it.isDirectory }.take(5).forEach { item ->
+                    workspaceInfo.items.filter { it.isDirectory }.take(8).forEach { item ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),

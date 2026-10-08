@@ -34,6 +34,14 @@ class MainActivity : ComponentActivity() {
     private var isBound = false
     private var speechRecognizer: SpeechRecognizer? = null
 
+    private val openDocumentTreeLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
+    ) { uri: android.net.Uri? ->
+        if (uri != null) {
+            handleSelectedFolderUri(uri)
+        }
+    }
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? AgyAgentService.LocalBinder
@@ -111,7 +119,12 @@ class MainActivity : ComponentActivity() {
                                 closeDrawer()
                             },
                             onSignOut = { viewModel.signOut() },
-                            onCloseDrawer = closeDrawer
+                            onCloseDrawer = closeDrawer,
+                            onOpenFolderPicker = {
+                                closeDrawer()
+                                openDocumentTreeLauncher.launch(null)
+                            },
+                            deviceShortcuts = viewModel.getDeviceShortcuts()
                         )
                     }
                 ) {
@@ -235,6 +248,61 @@ class MainActivity : ComponentActivity() {
                 ),
                 1001
             )
+        }
+    }
+
+    fun resolveTreeUriToPath(uri: android.net.Uri): String? {
+        try {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+        } catch (_: Exception) {}
+
+        val docId = try {
+            android.provider.DocumentsContract.getTreeDocumentId(uri)
+        } catch (_: Exception) {
+            null
+        }
+
+        if (docId != null) {
+            val parts = docId.split(":")
+            if (parts.size >= 2) {
+                val type = parts[0]
+                val subPath = parts[1]
+                if ("primary".equals(type, ignoreCase = true)) {
+                    val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+                    return if (subPath.isBlank()) root else "$root/$subPath"
+                } else {
+                    val directPath = "/storage/$type/$subPath"
+                    if (File(directPath).exists()) {
+                        return directPath
+                    }
+                }
+            }
+        }
+
+        val rawPath = uri.path
+        if (rawPath != null && rawPath.contains("primary:")) {
+            val sub = rawPath.substringAfter("primary:")
+            val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+            return if (sub.isBlank()) root else "$root/$sub"
+        }
+
+        return null
+    }
+
+    private fun handleSelectedFolderUri(uri: android.net.Uri) {
+        val resolvedPath = resolveTreeUriToPath(uri)
+        if (resolvedPath != null) {
+            val folder = File(resolvedPath)
+            if (!hasStoragePermission()) {
+                requestStoragePermission()
+            }
+            viewModel.selectWorkspace(folder)
+        } else {
+            val fallback = android.os.Environment.getExternalStorageDirectory()
+            viewModel.selectWorkspace(fallback)
         }
     }
 

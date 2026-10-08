@@ -150,8 +150,13 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun createProject(name: String) {
-        val created = workspaceManager.createProject(name)
+        val current = File(_workspaceInfo.value.currentPath)
+        val created = workspaceManager.createProject(name, current)
         selectWorkspace(created)
+    }
+
+    fun getDeviceShortcuts(): List<com.yashwant.agymobile.core.DeviceShortcut> {
+        return workspaceManager.getDeviceShortcuts()
     }
 
     fun resumeConversation(convId: String) {
