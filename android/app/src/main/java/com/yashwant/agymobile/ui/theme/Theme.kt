@@ -10,21 +10,21 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = ElectricCyan,
-    onPrimary = ObsidianBlack,
-    primaryContainer = CyanGlow,
-    onPrimaryContainer = ElectricCyan,
-    secondary = AntigravityViolet,
-    onSecondary = ObsidianBlack,
-    secondaryContainer = VioletGlow,
-    onSecondaryContainer = AntigravityViolet,
-    background = ObsidianBlack,
+    primary = AntigravityBlue,
+    onPrimary = AntigravityDarkBg,
+    primaryContainer = AntigravitySurfaceElevated,
+    onPrimaryContainer = TextPrimary,
+    secondary = AntigravityCyan,
+    onSecondary = AntigravityDarkBg,
+    secondaryContainer = AntigravitySurfaceHighlight,
+    onSecondaryContainer = TextPrimary,
+    background = AntigravityDarkBg,
     onBackground = TextPrimary,
-    surface = ObsidianSurface,
+    surface = AntigravitySurface,
     onSurface = TextPrimary,
-    surfaceVariant = ObsidianElevated,
+    surfaceVariant = AntigravitySurfaceElevated,
     onSurfaceVariant = TextSecondary,
-    outline = ObsidianBorder
+    outline = AntigravityBorder
 )
 
 @Composable
@@ -34,8 +34,8 @@ fun AgyTheme(content: @Composable () -> Unit) {
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = ObsidianBlack.toArgb()
-                window.navigationBarColor = ObsidianBlack.toArgb()
+                window.statusBarColor = AntigravityDarkBg.toArgb()
+                window.navigationBarColor = AntigravityDarkBg.toArgb()
                 WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false
                 WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = false
             }
