@@ -1,19 +1,18 @@
 # GSD Project State
 
-**Active Milestone:** v1.6.0
-**Current Phase:** Phase 06 - Local Device Folder Workspaces & Native Bash Execution Hardening
-**Status:** Completed
-**Last Updated:** 2026-10-08 23:04:00
+**Active Milestone:** v1.7.0
+**Current Phase:** Phase 07 - Mobile AI Device Storage & Interactive Folder Navigator
+**Status:** In Progress (Planning Complete)
+**Last Updated:** 2026-10-08 23:15:00
 
 ## User Directives & Decisions
-- **Local Mobile Folder Workspaces**: Enabled users to pick device folders via Android SAF (`ACTION_OPEN_DOCUMENT_TREE`) and quick shortcuts (`Downloads`, `Documents`, Storage Root) in the Navigation Drawer. The selected folder becomes the working directory for `libagy.so` and binds to the conversation session.
-- **Bash Callable Hardening**:
-  - In `BootstrapManager`, write an environment profile script exporting `bash() { "$SHELL" "$@"; }` and wire it via `BASH_ENV` and `ENV`. Subshells and scripts running `bash` resolve directly to `libbash.so` without touching forbidden `binDir/bash` (avoiding errno 13 W^X denial).
-  - Deployed `~/.gemini/rules/system-android.md` and `android-runtime.md` instructing models to invoke the official `run_command` tool instead of hallucinating an uncallable `bash` tool.
-- **Persistence**: Save and restore conversations with their exact bound folder path.
+- **Mobile AI Device Storage Paradigm**: The app is not restricted to internal app storage; it acts as an on-device AI assistant directly operating on `/storage/emulated/0`, `Download`, `Documents`, and custom device folders.
+- **Persistent Workspace Selection**: The chosen device folder must be saved in `settings.json` and restored on app launch so the app never reverts back to default app-private storage.
+- **In-App Device Folder Navigator**: Provide a high-craft interactive Compose bottom sheet (`DeviceFolderPickerModal`) with folder drilldown, breadcrumbs, shortcuts, folder creation, and direct path selection, bypassing SAF picker limitations.
+- **Dual Switcher Access**: Accessible from both the Navigation Drawer and an interactive folder pill in the Chat Top Bar.
 
 ## Current Position
-- Phase: 06-local-folder-workspace-bash-fix
+- Phase: 07-mobile-ai-device-workspace
 - Total Plans: 1
-- Completed Plans: 1
-- Next Action: Milestone Complete - Ready for user testing.
+- Completed Plans: 0
+- Next Action: Execute Plan 01 Wave 1

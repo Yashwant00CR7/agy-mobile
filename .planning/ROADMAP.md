@@ -24,9 +24,13 @@
 
 ### Milestone v1.6.0: Local Device Folder Workspaces & Native Bash Execution Hardening
 *Goal:* Enable users to open chats directly in any local device directory via Android SAF picker and quick drawer shortcuts, and harden native bash execution so bash calls never fail with "not callable" or errno 13.
+- [x] **Phase 06: Local Device Folder Workspaces & Native Bash Execution Hardening** (Completed)
+
+### Milestone v1.7.0: Mobile AI Device Storage & Interactive In-App Folder Navigator
+*Goal:* Transform agy-mobile into a true mobile AI assistant that operates directly on device storage (`/storage/emulated/0`), remembers active device folders across app restarts, provides an interactive in-app folder picker modal, and supports top bar and drawer switching.
 
 #### Phases
-- [x] **Phase 06: Local Device Folder Workspaces & Native Bash Execution Hardening** (Completed)
-  - **Goal:** Add SAF folder picker and drawer shortcuts for local directories (`Downloads`, `Documents`, `/storage/emulated/0`), bind chat workspaces directly to local paths, configure `BASH_ENV` and shell aliases in `BootstrapManager` to resolve `bash` to `libbash.so` cleanly, and add model rules against uncallable `bash` tool hallucination.
-  - **Requirements Addressed:** REQ-28, REQ-29, REQ-30, REQ-31.
-  - **Success Criteria:** User can pick any phone folder to open/bind chats; bash commands execute reliably without error 13; tests pass and APK compiles.
+- [ ] **Phase 07: Mobile AI Device Storage & Interactive Folder Navigator**
+  - **Goal:** Build `DeviceFolderPickerModal`, enable persistent workspace saving and startup restoration in `WorkspaceManager` and `AgyViewModel`, add top bar workspace switching pill in `ChatGptTopBar`, and verify full device file interactions.
+  - **Requirements Addressed:** REQ-32, REQ-33, REQ-34, REQ-35, REQ-36.
+  - **Success Criteria:** User can browse and select any device folder from in-app modal, chosen folder persists across restarts, top bar and drawer allow fast switching, tests pass, and APK builds.

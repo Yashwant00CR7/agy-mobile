@@ -85,7 +85,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _isAutonomous = MutableStateFlow(true)
     val isAutonomous: StateFlow<Boolean> = _isAutonomous.asStateFlow()
 
-    private val _workspaceInfo = MutableStateFlow(workspaceManager.getWorkspaceInfo())
+    private val _workspaceInfo = MutableStateFlow(workspaceManager.getWorkspaceInfo(workspaceManager.getInitialWorkspace()))
     val workspaceInfo: StateFlow<WorkspaceInfo> = _workspaceInfo.asStateFlow()
 
     private val _conversations = MutableStateFlow<List<ConversationItem>>(emptyList())
@@ -147,6 +147,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectWorkspace(directory: File) {
         _workspaceInfo.value = workspaceManager.getWorkspaceInfo(directory)
+        workspaceManager.saveLastWorkspacePath(directory.absolutePath)
     }
 
     fun createProject(name: String) {

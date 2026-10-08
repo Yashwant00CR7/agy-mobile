@@ -95,4 +95,25 @@ class WorkspaceManagerTest {
         assertNull(WorkspaceManager.resolveTreeDocIdToPath(null))
         assertNull(WorkspaceManager.resolveTreeDocIdToPath("invalid_format"))
     }
+
+    @Test
+    fun testWorkspacePersistenceAcrossRestarts() {
+        val root = tempFolder.newFolder("workspaces_persist")
+        val gemini = tempFolder.newFolder("gemini_persist")
+        val settingsFile = File(gemini, "settings.json")
+        val manager = WorkspaceManager(root, brainDir = File(gemini, "brain"), settingsFile = settingsFile)
+
+        assertNull(manager.getLastWorkspacePath())
+        assertEquals(root.absolutePath, manager.getInitialWorkspace().absolutePath)
+
+        val phoneFolder = tempFolder.newFolder("device_storage", "Download", "MyProject")
+        manager.saveLastWorkspacePath(phoneFolder.absolutePath)
+        assertEquals(phoneFolder.absolutePath, manager.getLastWorkspacePath())
+        assertEquals(phoneFolder.absolutePath, manager.getInitialWorkspace().absolutePath)
+
+        // New manager instance simulating app restart
+        val restartedManager = WorkspaceManager(root, brainDir = File(gemini, "brain"), settingsFile = settingsFile)
+        assertEquals(phoneFolder.absolutePath, restartedManager.getLastWorkspacePath())
+        assertEquals(phoneFolder.absolutePath, restartedManager.getInitialWorkspace().absolutePath)
+    }
 }

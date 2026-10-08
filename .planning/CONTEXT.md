@@ -1,20 +1,23 @@
-# Phase Context: Local Mobile Device Folder Workspaces & Native Bash Execution Hardening
+# Phase Context: Mobile AI Device Storage & Interactive Folder Navigator
 
 ## Problem & User Intent
-1. **Local Mobile Folder Workspaces:** The user wants to directly open and run chats scoped to any local mobile device folder (e.g. in `/storage/emulated/0`, `/storage/emulated/0/Download`, `/storage/emulated/0/Documents`, or selected via Android's file picker). Chats and file operations must bind directly to that folder as the active workspace.
-2. **"bash is not callable" Error:** In some cases on Android, attempts to execute bash commands fail with "bash is not callable" or command resolution errors. This stems from two sources:
-   - Android 10+ (API 29+) SELinux W^X restrictions preventing execution of binaries or symlinks located in app data storage (`binDir/bash` fails with errno 13 Permission Denied), while `libbash.so` resides in `nativeLibraryDir` without a standalone file named `bash`.
-   - LLMs or skills attempting to call a non-existent tool named `bash` rather than the official Antigravity tool `run_command`.
+The user wants agy-mobile to function like a true mobile AI assistant that is not restricted to an app-private internal directory (`/data/user/0/.../workspaces`). The AI should directly interact with real phone files across device storage (`/storage/emulated/0`, `Download`, `Documents`, etc.). The previous SAF file picker had restrictions on Android, was hard to access, and did not persist the chosen phone folder across restarts.
 
 ## Mental Model & Core Abstractions
-- **Workspace as Any Accessible Path:** Workspaces are no longer restricted to internal `workspaces/` folders. Any valid folder on internal storage (`/storage/emulated/0/...`) can be an active workspace if storage permission (`MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`) is granted.
-- **SAF Directory Selection:** The user can tap "Open Device Folder" in the navigation drawer, which launches the Android System Folder Picker (`ACTION_OPEN_DOCUMENT_TREE`) or taps quick shortcuts (Downloads, Documents, Storage Root). The resolved path is passed to `WorkspaceManager` and `AgyViewModel`.
-- **Session-Workspace Binding:** Each chat session records `workspacePath`. Resuming a chat immediately activates its bound folder; switching folders creates/switches the context for future turns.
-- **Bulletproof Bash Resolution:**
-  - `BootstrapManager` initializes an environment profile (`~/.gemini/shell_env.sh`) configured via `BASH_ENV` and `ENV`. It exports a shell function `bash() { "$SHELL" "$@"; }` so any command running `bash ...` resolves directly to `libbash.so` inside the shell without needing a forbidden binary in `binDir`.
-  - System rule in `~/.gemini/rules/system-android.md` informs the model that `run_command` is the tool to use for shell operations on Android, preventing hallucinatory calls to an uncallable `bash` tool.
+1. **Device Storage as First-Class Environment**:
+   - The primary working directory is on real device storage (`/storage/emulated/0/...`).
+   - The last selected mobile workspace is persisted across app launches. When the app reopens, it restores that folder instead of reverting to app internal storage.
+2. **Interactive In-App Folder Navigator (`DeviceFolderPickerModal`)**:
+   - Instead of relying solely on Android's SAF picker (which blocks root and Downloads access), the app provides a native Compose modal with direct filesystem drilldown.
+   - Features: Breadcrumbs, quick shortcuts (`Downloads`, `Documents`, `Storage Root`), folder listing with item counts, `.. (Parent Folder)` navigation, "+ New Folder" creation, and "Select This Folder" button.
+   - Built-in permission banner if `MANAGE_EXTERNAL_STORAGE` is missing, allowing one-tap access to Android Settings.
+3. **Dual Quick Access (Drawer + Top Bar)**:
+   - Accessible via a prominent "Choose Device Folder" button in the Navigation Drawer.
+   - Also accessible directly from the Chat Top Bar via an interactive workspace pill (`📁 Download ▾`).
+4. **Engine & Chat Binding**:
+   - Switching folders immediately scopes `libagy.so` to that directory (`ANTIGRAVITY_WORKSPACE_ROOT`, `WORKSPACE_DIR`, `PWD`).
+   - Each chat session records its associated device folder path and restores it when resumed.
 
 ## Verification & Backpressure Seams
-- Unit Tests: `./gradlew test`
+- Unit Tests: `./gradlew test` (including `WorkspaceManagerTest`, `BootstrapManagerTest`, `AgyProcessEngineTest`)
 - Build: `./gradlew assembleDebug`
-- Verification of test suites for `WorkspaceManagerTest`, `BootstrapManagerTest`, and `AgyProcessEngineTest`.

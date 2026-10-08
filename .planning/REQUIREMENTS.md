@@ -28,15 +28,28 @@
 - [x] **REQ-25**: Persistent Stream-JSON Daemon in AgyProcessEngine.
 - [x] **REQ-26**: UI Synchronization & Effort Locking.
 - [x] **REQ-27**: Comprehensive Verification & Build v1.5.0.
+- [x] **REQ-28**: Local Mobile Device Folder Workspaces.
+- [x] **REQ-29**: Direct Chat-to-Folder Binding & Persistence.
+- [x] **REQ-30**: Native Bash Callable Hardening in Android Runtime.
+- [x] **REQ-31**: Testing, Verification & Release Build v1.6.0.
 
 ---
 
-## Milestone v1.6.0: Local Device Folder Workspaces & Native Bash Execution Hardening
+## Milestone v1.7.0: Mobile AI Device Storage & Interactive In-App Folder Navigator
 
-- [x] **REQ-28**: **Local Mobile Device Folder Workspaces**: Add native Android Storage Access Framework (SAF) folder picker (`ACTION_OPEN_DOCUMENT_TREE`) + direct shortcuts (e.g. `Downloads`, `Documents`, Device Storage Root `/storage/emulated/0`) in `MainActivity` and `ChatGptDrawer`. When a user chooses or navigates to a local device folder, set the active workspace directory to that exact directory, bind chat sessions to it, and pass it to `libagy.so` as `ANTIGRAVITY_WORKSPACE_ROOT`, `WORKSPACE_DIR`, and process working directory.
-- [x] **REQ-29**: **Direct Chat-to-Folder Binding & Persistence**: In `ConversationRepository` and `WorkspaceManager`, preserve the exact external folder path associated with each chat session so resuming a chat instantly restores that folder as the active workspace, and starting a new chat in a local folder creates new chat history tied to that directory.
-- [x] **REQ-30**: **Native Bash Callable Hardening in Android Runtime**:
-  1. In `BootstrapManager`, resolve `bash` command executions cleanly by injecting `BASH_ENV` and `ENV` startup scripts that alias/export `bash() { "$SHELL" "$@"; }`, ensuring any subshell, command, or script invoking `bash` routes seamlessly to `libbash.so` without failing with errno 13 (Permission denied) on Android 10+ W^X app data storage.
-  2. Provide system rules/instructions in `~/.gemini/rules/system-android.md` ensuring the agent runtime and models always use `run_command` rather than uncallable tool names like `bash()`.
-  3. Ensure fallback to `/system/bin/sh` if `libbash.so` is unavailable.
-- [x] **REQ-31**: **Testing, Verification & Release Build**: Update unit tests in `WorkspaceManagerTest.kt`, `BootstrapManagerTest.kt`, and `AgyProcessEngineTest.kt`. Verify with `./gradlew test` and build the updated debug APK `android/agy-mobile-debug.apk`.
+- [ ] **REQ-32**: **In-App Device Folder Navigator & Picker Modal**:
+  - Build `DeviceFolderPickerModal.kt` providing an interactive directory browser navigating through device storage (`/storage/emulated/0`), with breadcrumbs, quick shortcuts (`Downloads`, `Documents`, `Storage Root`), folder listing with subfolder item counts, `.. (Parent Folder)` navigation, "+ New Folder" dialog, and a primary "Select This Folder" action button.
+  - If `Environment.isExternalStorageManager()` is false, display an in-modal permission prompt banner with a one-tap action taking the user to Android Settings to enable "All Files Access".
+- [ ] **REQ-33**: **Persistent Mobile Workspace Across App Launches**:
+  - In `WorkspaceManager` and `AgyViewModel`, persist the last selected workspace path to `settings.json`.
+  - On app launch, if a device workspace was previously chosen and still exists, automatically initialize and restore that mobile folder as the active workspace instead of reverting to the app-internal default `workspaces/` directory.
+  - If storage permission is granted and no custom workspace has been set, default to a device folder (e.g. `/storage/emulated/0/Download` or `/storage/emulated/0`) rather than app private internal storage so the app behaves like a true mobile AI.
+- [ ] **REQ-34**: **Dual Access Points (Drawer & Top Bar) for Mobile Folder Switching**:
+  - Navigation Drawer (`ChatGptDrawer.kt`): Add a prominent "Choose Device Folder" action card and allow tapping the current workspace pill to open the modal.
+  - Chat Top Bar (`ChatGptTopBar.kt` / `ChatScreen.kt`): Add an interactive folder indicator pill beside or below the model selector (e.g. `📁 Download ▾`) so the user can see and change their active device folder directly from the chat screen at any time without opening the drawer.
+- [ ] **REQ-35**: **Device File Interaction & Engine Workspace Binding**:
+  - When a device folder is chosen, instantly update `AgyViewModel`, notify the user with a subtle system message ("Workspace switched to: /path"), and bind all future queries, file edits, and commands to that path.
+  - `AgyProcessEngine` terminates any stale background daemon if the workspace path changes and spawns the engine in the new device folder with `ANTIGRAVITY_WORKSPACE_ROOT`, `WORKSPACE_DIR`, `PWD`, and `processBuilder.directory(folder)`.
+- [ ] **REQ-36**: **Unit Testing & Release Build Verification**:
+  - Add unit tests for `WorkspaceManager` persistent workspace loading/saving and directory navigation.
+  - Run `./gradlew test` and compile `android/agy-mobile-debug.apk`.

@@ -34,8 +34,53 @@ data class DeviceShortcut(
 
 class WorkspaceManager(
     val rootWorkspaceDir: File,
-    val brainDir: File = File(rootWorkspaceDir.parentFile, ".gemini/antigravity-cli/brain")
+    val brainDir: File = File(rootWorkspaceDir.parentFile, ".gemini/antigravity-cli/brain"),
+    val settingsFile: File = File(rootWorkspaceDir.parentFile, ".gemini/settings.json")
 ) {
+
+    fun getLastWorkspacePath(): String? {
+        if (!settingsFile.exists()) return null
+        return try {
+            val json = JSONObject(settingsFile.readText())
+            if (json.has("lastWorkspacePath")) {
+                val path = json.getString("lastWorkspacePath")
+                if (path.isNotBlank() && File(path).exists()) path else null
+            } else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    fun saveLastWorkspacePath(path: String) {
+        try {
+            settingsFile.parentFile?.mkdirs()
+            val json = if (settingsFile.exists()) {
+                try { JSONObject(settingsFile.readText()) } catch (_: Exception) { JSONObject() }
+            } else JSONObject()
+            json.put("lastWorkspacePath", path)
+            settingsFile.writeText(json.toString(2))
+        } catch (_: Exception) {}
+    }
+
+    fun getInitialWorkspace(): File {
+        val lastPath = getLastWorkspacePath()
+        if (lastPath != null) {
+            val dir = File(lastPath)
+            if (dir.exists() && dir.isDirectory) return dir
+        }
+        try {
+            val rootPath = getPrimaryStoragePath()
+            val downloads = File(rootPath, "Download")
+            if (downloads.exists() && downloads.isDirectory && downloads.canRead()) {
+                return downloads
+            }
+            val root = File(rootPath)
+            if (root.exists() && root.isDirectory && root.canRead()) {
+                return root
+            }
+        } catch (_: Exception) {}
+        return rootWorkspaceDir
+    }
 
     fun getWorkspaceInfo(targetDir: File = rootWorkspaceDir): WorkspaceInfo {
         val dir = if (targetDir.exists() && targetDir.isDirectory) targetDir else rootWorkspaceDir
