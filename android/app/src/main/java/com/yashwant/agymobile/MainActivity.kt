@@ -83,32 +83,33 @@ class MainActivity : ComponentActivity() {
                 ModalNavigationDrawer(
                     drawerState = drawerState,
                     drawerContent = {
+                        val closeDrawer: () -> Unit = { coroutineScope.launch { drawerState.close() } }
                         ChatGptDrawer(
                             workspaceInfo = workspaceInfo,
                             conversations = conversations,
                             onSelectDirectory = { dir ->
                                 viewModel.selectWorkspace(dir)
-                                coroutineScope.launch { drawerState.close() }
+                                closeDrawer()
                             },
                             onCreateProject = { name ->
                                 viewModel.createProject(name)
-                                coroutineScope.launch { drawerState.close() }
+                                closeDrawer()
                             },
                             onResumeConversation = { id ->
                                 viewModel.resumeConversation(id)
-                                coroutineScope.launch { drawerState.close() }
+                                closeDrawer()
                             },
                             onNewChat = {
                                 viewModel.clearChat()
-                                coroutineScope.launch { drawerState.close() }
+                                closeDrawer()
                             },
                             authState = authState,
                             onOpenAuth = {
                                 viewModel.openAuthSheet()
-                                coroutineScope.launch { drawerState.close() }
+                                closeDrawer()
                             },
                             onSignOut = { viewModel.signOut() },
-                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+                            onCloseDrawer = closeDrawer
                         )
                     }
                 ) {

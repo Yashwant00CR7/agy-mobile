@@ -75,11 +75,44 @@ fun WelcomeHero(
 
         // Greeting Header
         Text(
-            text = "Where should we begin?",
+            text = "What can I help you build?",
             color = TextPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold
         )
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Subtle model & workspace context badge
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = selectedModel.substringBefore(" (").ifBlank { "Gemini Flash" },
+                color = AntigravityBlue,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable { onOpenModelPicker() }
+            )
+            Text(text = "•", color = TextMuted, fontSize = 12.sp)
+            Text(
+                text = workspacePath.ifBlank { "workspace" },
+                color = TextSecondary,
+                fontSize = 12.sp
+            )
+        }
+
+        if (!authState.isAuthenticated) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "⚡ Tap to connect Gemini API key or sign in",
+                color = AmberWarning,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable { onOpenAuth() }
+            )
+        }
 
         Spacer(modifier = Modifier.height(28.dp))
 

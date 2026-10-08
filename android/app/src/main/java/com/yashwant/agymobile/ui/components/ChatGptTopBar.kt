@@ -3,6 +3,7 @@ package com.yashwant.agymobile.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -22,6 +23,8 @@ import com.yashwant.agymobile.ui.theme.*
 @Composable
 fun ChatGptTopBar(
     selectedModel: String,
+    isAutonomous: Boolean,
+    onToggleAutonomous: () -> Unit,
     onOpenDrawer: () -> Unit,
     onOpenModelPicker: () -> Unit,
     onNewChat: () -> Unit,
@@ -46,7 +49,7 @@ fun ChatGptTopBar(
                 // Left: Hamburger Menu Button
                 IconButton(
                     onClick = onOpenDrawer,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Menu,
@@ -83,17 +86,50 @@ fun ChatGptTopBar(
                     }
                 }
 
-                // Right: New Chat Icon Button
-                IconButton(
-                    onClick = onNewChat,
-                    modifier = Modifier.size(40.dp)
+                // Right: Autonomous Toggle Pill + New Chat Icon
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = AgyIcons.NewChat,
-                        contentDescription = "New Chat",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    // Mode Pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (isAutonomous) EmeraldSuccess.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f))
+                            .clickable { onToggleAutonomous() }
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isAutonomous) EmeraldSuccess else AmberWarning)
+                            )
+                            Text(
+                                text = if (isAutonomous) "Auto" else "Plan",
+                                color = if (isAutonomous) EmeraldSuccess else AmberWarning,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // New Chat Action
+                    IconButton(
+                        onClick = onNewChat,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = AgyIcons.NewChat,
+                            contentDescription = "New Chat",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
                 }
             }
 
@@ -109,10 +145,6 @@ fun ChatGptTopBar(
 }
 
 private fun formatModelDisplayName(model: String): String {
-    return when {
-        model.contains("Flash", ignoreCase = true) -> "Gemini Flash"
-        model.contains("Pro", ignoreCase = true) -> "Gemini Pro"
-        model.contains("Claude", ignoreCase = true) -> "Claude 3.7 Sonnet"
-        else -> model.substringBefore(" (").ifBlank { "Antigravity" }
-    }
+    val clean = model.substringBefore(" (").trim()
+    return clean.ifBlank { "Gemini 2.5 Flash" }
 }

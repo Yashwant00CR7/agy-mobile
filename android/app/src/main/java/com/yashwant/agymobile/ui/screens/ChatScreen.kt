@@ -5,10 +5,12 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,9 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -79,6 +84,8 @@ fun ChatScreen(
         topBar = {
             ChatGptTopBar(
                 selectedModel = selectedModel,
+                isAutonomous = isAutonomous,
+                onToggleAutonomous = onToggleAutonomous,
                 onOpenDrawer = onOpenMenu,
                 onOpenModelPicker = { showModelPicker = true },
                 onNewChat = onClearChat
@@ -118,7 +125,7 @@ fun ChatScreen(
                 WelcomeHero(
                     authState = authState,
                     selectedModel = selectedModel,
-                    workspacePath = workspaceName,
+                    workspacePath = workspaceName + (gitBranch?.let { " • 🌿 $it" } ?: ""),
                     onOpenModelPicker = { showModelPicker = true },
                     onOpenAuth = onOpenAuth,
                     onSelectPrompt = { prompt ->
@@ -221,13 +228,8 @@ fun ChatScreen(
                                             )
                                         }
 
-                                        // Assistant Text Body
-                                        Text(
-                                            text = msg.content,
-                                            color = AssistantText,
-                                            fontSize = 15.sp,
-                                            lineHeight = 23.sp
-                                        )
+                                        // Assistant Rich Markdown Body
+                                        RichMarkdownMessage(content = msg.content)
 
                                         // Subtle Copy Action Icon
                                         Row(
@@ -455,5 +457,124 @@ fun ChatScreen(
             },
             onDismiss = { showModelPicker = false }
         )
+    }
+}
+
+@Composable
+private fun RichMarkdownMessage(
+    content: String,
+    modifier: Modifier = Modifier
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
+    val blocks = remember(content) { parseMarkdownBlocks(content) }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        blocks.forEach { block ->
+            when (block) {
+                is MarkdownBlock.Code -> {
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(AntigravitySurface)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = block.language.ifBlank { "code" },
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    text = "Copy",
+                                    color = AntigravityBlue,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        clipboardManager.setText(AnnotatedString(block.code))
+                                    }
+                                )
+                            }
+                            val scrollState = rememberScrollState()
+                            Text(
+                                text = block.code,
+                                color = AssistantText,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp,
+                                modifier = Modifier
+                                    .horizontalScroll(scrollState)
+                                    .padding(12.dp)
+                            )
+                        }
+                    }
+                }
+                is MarkdownBlock.Text -> {
+                    Text(
+                        text = formatAnnotatedMarkdown(block.text),
+                        color = AssistantText,
+                        fontSize = 15.sp,
+                        lineHeight = 23.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+private sealed class MarkdownBlock {
+    data class Code(val language: String, val code: String) : MarkdownBlock()
+    data class Text(val text: String) : MarkdownBlock()
+}
+
+private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
+    val blocks = mutableListOf<MarkdownBlock>()
+    val parts = raw.split("```")
+    for (i in parts.indices) {
+        if (i % 2 == 1) {
+            val firstLineBreak = parts[i].indexOf('\n')
+            val lang = if (firstLineBreak != -1) parts[i].substring(0, firstLineBreak).trim() else ""
+            val code = if (firstLineBreak != -1) parts[i].substring(firstLineBreak + 1) else parts[i]
+            blocks.add(MarkdownBlock.Code(lang, code.trimEnd()))
+        } else {
+            val text = parts[i].trim()
+            if (text.isNotEmpty()) {
+                blocks.add(MarkdownBlock.Text(text))
+            }
+        }
+    }
+    return blocks
+}
+
+private fun formatAnnotatedMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var cursor = 0
+        val regex = Regex("\\*\\*(.*?)\\*\\*")
+        val matches = regex.findAll(text)
+        for (match in matches) {
+            if (match.range.first > cursor) {
+                append(text.substring(cursor, match.range.first))
+            }
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
+                append(match.groupValues[1])
+            }
+            cursor = match.range.last + 1
+        }
+        if (cursor < text.length) {
+            append(text.substring(cursor))
+        }
     }
 }

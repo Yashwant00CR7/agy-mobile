@@ -47,6 +47,7 @@ fun ChatGptDrawer(
     var showWorkspaceBrowser by remember { mutableStateOf(false) }
     var newProjectName by remember { mutableStateOf("") }
     var showNewProjectDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     ModalDrawerSheet(
         modifier = modifier
@@ -365,18 +366,32 @@ fun ChatGptDrawer(
                         }
                     }
 
-                    if (authState.isAuthenticated) {
-                        IconButton(onClick = onSignOut, modifier = Modifier.size(30.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        IconButton(onClick = { showSettingsDialog = true }, modifier = Modifier.size(30.dp)) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Sign Out",
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = "Settings",
                                 tint = TextSecondary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(17.dp)
                             )
                         }
-                    } else {
-                        TextButton(onClick = onOpenAuth) {
-                            Text("Connect", color = AntigravityBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+
+                        if (authState.isAuthenticated) {
+                            IconButton(onClick = onSignOut, modifier = Modifier.size(30.dp)) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                    contentDescription = "Sign Out",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else {
+                            TextButton(onClick = onOpenAuth) {
+                                Text("Connect", color = AntigravityBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -416,6 +431,45 @@ fun ChatGptDrawer(
             dismissButton = {
                 TextButton(onClick = { showNewProjectDialog = false }) {
                     Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = AntigravitySurface,
+            textContentColor = TextPrimary
+        )
+    }
+
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Settings, contentDescription = null, tint = AntigravityBlue, modifier = Modifier.size(20.dp))
+                    Text("Antigravity Settings", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Active Engines:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("• libagy.so (ARM64 Native Agent)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text("• libbash.so (ARM64 Native Shell)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                    }
+                    Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)
+                    Text("Version: agy-mobile v1.2.0 (ChatGPT UX)", color = TextMuted, fontSize = 11.sp)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Done", color = AntigravityBlue)
                 }
             },
             containerColor = AntigravitySurface,

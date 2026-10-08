@@ -40,13 +40,6 @@ fun ChatGptComposer(
     val haptic = LocalHapticFeedback.current
     var showQuickMenu by remember { mutableStateOf(false) }
 
-    val quickActions = listOf(
-        QuickActionItem("git status", "Check git working tree & status"),
-        QuickActionItem("review current diffs", "Run Standards and Spec code review"),
-        QuickActionItem("run project tests", "Execute automated test suite"),
-        QuickActionItem("explain architecture", "Overview of codebase architecture")
-    )
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -100,17 +93,17 @@ fun ChatGptComposer(
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                         )
-                        quickActions.forEach { action ->
+                        QuickActions.forEach { action ->
                             DropdownMenuItem(
                                 text = {
                                     Column {
-                                        Text(action.label, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                                        Text(action.subtitle, color = TextSecondary, fontSize = 11.sp)
+                                        Text(action.title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(action.description, color = TextSecondary, fontSize = 11.sp)
                                     }
                                 },
                                 onClick = {
                                     showQuickMenu = false
-                                    onQuickAction(action.label)
+                                    onQuickAction(action.prompt)
                                 }
                             )
                         }
@@ -219,8 +212,3 @@ fun ChatGptComposer(
         }
     }
 }
-
-private data class QuickActionItem(
-    val label: String,
-    val subtitle: String
-)
