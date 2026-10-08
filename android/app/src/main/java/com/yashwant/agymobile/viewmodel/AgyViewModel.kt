@@ -46,10 +46,17 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedModel = MutableStateFlow(bootstrapManager.getSelectedModelDisplayName())
     val selectedModel: StateFlow<String> = _selectedModel.asStateFlow()
 
+    private val _selectedEffort = MutableStateFlow("low")
+    val selectedEffort: StateFlow<String> = _selectedEffort.asStateFlow()
+
     fun selectModel(model: String) {
         _selectedModel.value = model
         bootstrapManager.saveSelectedModel(model)
         dismissModelErrors()
+    }
+
+    fun setEffort(effort: String) {
+        _selectedEffort.value = effort.lowercase()
     }
 
     fun dismissModelErrors() {
@@ -307,7 +314,8 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                 conversationId = activeConversationId,
                 autonomous = _isAutonomous.value,
                 workspaceDir = _workspaceInfo.value.currentPath,
-                model = _selectedModel.value
+                model = _selectedModel.value,
+                effort = _selectedEffort.value
             )
 
             engine.startTurn(agyExe, request, env)

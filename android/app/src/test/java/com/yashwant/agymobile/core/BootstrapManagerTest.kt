@@ -226,7 +226,8 @@ class BootstrapManagerTest {
         val extracted = manager.extractBundledAssets(
             assetList = { path ->
                 when (path) {
-                    "skills" -> arrayOf("gsd-plan-phase")
+                    "skills" -> arrayOf("ralph-loop", "gsd-plan-phase")
+                    "skills/ralph-loop" -> arrayOf("SKILL.md")
                     "skills/gsd-plan-phase" -> arrayOf("SKILL.md")
                     "gsd-core/workflows" -> arrayOf("plan-phase.md")
                     "gsd-core/references" -> arrayOf("ui-brand.md")
@@ -239,9 +240,15 @@ class BootstrapManagerTest {
         )
 
         assertTrue(extracted > 0)
-        val skillFile = File(manager.geminiDir, "config/skills/gsd-plan-phase/SKILL.md")
-        assertTrue(skillFile.exists())
-        assertEquals("test asset content for skills/gsd-plan-phase/SKILL.md", skillFile.readText())
+        // Essential skill extracted to active config/skills
+        val activeSkillFile = File(manager.geminiDir, "config/skills/ralph-loop/SKILL.md")
+        assertTrue(activeSkillFile.exists())
+        assertEquals("test asset content for skills/ralph-loop/SKILL.md", activeSkillFile.readText())
+
+        // Non-essential skill extracted to on-demand skills-library
+        val librarySkillFile = File(manager.geminiDir, "skills-library/gsd-plan-phase/SKILL.md")
+        assertTrue(librarySkillFile.exists())
+        assertEquals("test asset content for skills/gsd-plan-phase/SKILL.md", librarySkillFile.readText())
 
         val workflowFile = File(manager.geminiDir, "antigravity/gsd-core/workflows/plan-phase.md")
         assertTrue(workflowFile.exists())

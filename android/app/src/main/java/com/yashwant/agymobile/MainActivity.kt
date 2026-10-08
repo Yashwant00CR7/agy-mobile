@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
                 val authState by viewModel.authState.collectAsState()
                 val showAuthSheet by viewModel.showAuthSheet.collectAsState()
                 val selectedModel by viewModel.selectedModel.collectAsState()
+                val selectedEffort by viewModel.selectedEffort.collectAsState()
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
@@ -134,6 +135,8 @@ class MainActivity : ComponentActivity() {
                         onOpenAuth = { viewModel.openAuthSheet() },
                         selectedModel = selectedModel,
                         onSelectModel = { viewModel.selectModel(it) },
+                        selectedEffort = selectedEffort,
+                        onSelectEffort = { viewModel.setEffort(it) },
                         onClearChat = { viewModel.clearChat() },
                         hasStoragePermission = hasStorage,
                         onRequestStoragePermission = { requestStoragePermission() }

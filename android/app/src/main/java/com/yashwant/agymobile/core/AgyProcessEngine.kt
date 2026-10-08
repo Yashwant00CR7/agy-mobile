@@ -243,11 +243,11 @@ class AgyProcessEngine(
             args.add(modelSlug)
 
             val effort = when {
-                !request.effort.isNullOrBlank() -> request.effort
+                !request.effort.isNullOrBlank() -> request.effort.lowercase()
                 modelSlug.endsWith("-high") -> "high"
                 modelSlug.endsWith("-low") -> "low"
                 modelSlug.endsWith("-medium") -> "medium"
-                else -> "medium"
+                else -> "low"
             }
             args.add("--effort")
             args.add(effort)

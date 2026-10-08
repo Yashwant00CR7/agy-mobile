@@ -1,17 +1,18 @@
 # GSD Project State
 
-**Active Milestone:** v1.3.0
-**Current Phase:** Phase 03 - Latency Optimization, Folder-Wise Context Scoping, Session Persistence & Keyboard IME Fix
-**Status:** Complete
-**Last Updated:** 2026-10-08 15:16:00
+**Active Milestone:** v1.4.0
+**Current Phase:** Phase 04 - Context Minimization & In-App Reasoning Effort Control
+**Status:** Completed
+**Last Updated:** 2026-10-08 16:03:00
 
 ## User Directives & Decisions
-- **Turn Latency & Scoping**: Scope agent execution strictly to folder-wise context (`workspaceDir`), preventing wide device-level context traversal. Default model configured to `Gemini 3.8 Flash (Medium Effort)` for rapid streaming, paired with an instant pulsing "Antigravity is thinking..." indicator.
-- **Session Persistence**: Auto-save all conversations locally to `filesDir/conversations/<id>.json`. Start with a fresh clean "New Chat" on app launch. Restore full chat history and workspace when selecting any session from the drawer.
-- **Keyboard IME & Layout**: Apply `imePadding()` to `ChatGptComposer` so the input field floats securely above the software keyboard without occlusion, and auto-scroll `LazyColumn` to bottom on keyboard display.
+- **Skills Pruning**: Extract only essential mobile skills (`ralph-loop`, `gsd-quick`, `gsd-fast`) to `~/.gemini/config/skills/`, and store all remaining 70+ skills in `~/.gemini/skills-library/` (on-demand), dropping input context by ~15,000+ tokens.
+- **In-App Reasoning Effort Bar**: Create an interactive reasoning effort control directly inside the app (e.g. `Low ⚡`, `Medium ⚖️`, `High 🧠`) to allow the user to test and toggle thinking effort on the fly.
+- **Default Effort**: Set default reasoning effort to `low` (instant) for fast sub-second turn response testing.
+- **Workspace Ignore**: Skipped for now per user instruction.
 
 ## Current Position
-- Phase: 03-perf-persistence-ime
+- Phase: 04-context-minimization-effort-bar
 - Total Plans: 1
 - Completed Plans: 1
-- Next Action: Milestone Complete - Ready for deployment & testing
+- Next Action: Milestone Complete - Ready for user testing.

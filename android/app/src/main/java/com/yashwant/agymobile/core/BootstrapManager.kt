@@ -65,14 +65,19 @@ class BootstrapManager(
     ): Int {
         var count = 0
         try {
-            // 1. Extract skills
+            // 1. Extract skills with Lean Profile: only essentials in active context
             val skills = assetList("skills") ?: emptyArray()
             val targetSkillsDir = File(geminiDir, "config/skills")
+            val librarySkillsDir = File(geminiDir, "skills-library")
             targetSkillsDir.mkdirs()
+            librarySkillsDir.mkdirs()
+
+            val essentialSkills = setOf("ralph-loop", "gsd-quick", "gsd-fast")
 
             for (skillName in skills) {
                 val skillFiles = assetList("skills/$skillName") ?: emptyArray()
-                val skillDest = File(targetSkillsDir, skillName)
+                val isEssential = essentialSkills.contains(skillName)
+                val skillDest = if (isEssential) File(targetSkillsDir, skillName) else File(librarySkillsDir, skillName)
                 skillDest.mkdirs()
                 for (fileName in skillFiles) {
                     val stream = assetOpener("skills/$skillName/$fileName") ?: continue
@@ -83,6 +88,14 @@ class BootstrapManager(
                     } else {
                         stream.close()
                     }
+                }
+            }
+
+            // Prune any non-essential skills in active skills dir to keep context ultra-lean
+            val activeSkillDirs = targetSkillsDir.listFiles { f -> f.isDirectory } ?: emptyArray()
+            for (dir in activeSkillDirs) {
+                if (!essentialSkills.contains(dir.name)) {
+                    dir.deleteRecursively()
                 }
             }
 

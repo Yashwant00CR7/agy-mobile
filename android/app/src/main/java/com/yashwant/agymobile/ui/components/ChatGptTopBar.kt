@@ -23,6 +23,7 @@ import com.yashwant.agymobile.ui.theme.*
 @Composable
 fun ChatGptTopBar(
     selectedModel: String,
+    selectedEffort: String = "low",
     isAutonomous: Boolean,
     onToggleAutonomous: () -> Unit,
     onOpenDrawer: () -> Unit,
@@ -59,13 +60,13 @@ fun ChatGptTopBar(
                     )
                 }
 
-                // Center: Centered Interactive Model Dropdown Pill
+                // Center: Centered Interactive Model Dropdown Pill with Effort Badge
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(AntigravitySurface)
                         .clickable { onOpenModelPicker() }
-                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -74,14 +75,32 @@ fun ChatGptTopBar(
                         Text(
                             text = formatModelDisplayName(selectedModel),
                             color = TextPrimary,
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                        val (effortBadge, effortColor) = when (selectedEffort.lowercase()) {
+                            "low" -> Pair("⚡ Low", AntigravityCyan)
+                            "high" -> Pair("🧠 High", AntigravityViolet)
+                            else -> Pair("⚖️ Med", AntigravityBlue)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(effortColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 5.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = effortBadge,
+                                color = effortColor,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Icon(
                             imageVector = AgyIcons.ChevronDown,
-                            contentDescription = "Select Model",
+                            contentDescription = "Select Model & Effort",
                             tint = TextSecondary,
-                            modifier = Modifier.size(12.dp)
+                            modifier = Modifier.size(11.dp)
                         )
                     }
                 }

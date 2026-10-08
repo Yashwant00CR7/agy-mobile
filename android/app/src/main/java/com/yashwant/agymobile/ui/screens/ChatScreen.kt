@@ -62,6 +62,8 @@ fun ChatScreen(
     onOpenAuth: () -> Unit = {},
     selectedModel: String = "Gemini 2.5 Flash",
     onSelectModel: (String) -> Unit = {},
+    selectedEffort: String = "low",
+    onSelectEffort: (String) -> Unit = {},
     onClearChat: () -> Unit = {},
     hasStoragePermission: Boolean = true,
     onRequestStoragePermission: () -> Unit = {},
@@ -104,6 +106,7 @@ fun ChatScreen(
         topBar = {
             ChatGptTopBar(
                 selectedModel = selectedModel,
+                selectedEffort = selectedEffort,
                 isAutonomous = isAutonomous,
                 onToggleAutonomous = onToggleAutonomous,
                 onOpenDrawer = onOpenMenu,
@@ -483,6 +486,8 @@ fun ChatScreen(
                 onSelectModel(model)
                 showModelPicker = false
             },
+            selectedEffort = selectedEffort,
+            onEffortSelect = onSelectEffort,
             onDismiss = { showModelPicker = false }
         )
     }
