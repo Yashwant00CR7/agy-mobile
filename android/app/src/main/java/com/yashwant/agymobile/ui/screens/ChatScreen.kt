@@ -67,6 +67,7 @@ fun ChatScreen(
     onClearChat: () -> Unit = {},
     hasStoragePermission: Boolean = true,
     onRequestStoragePermission: () -> Unit = {},
+    onOpenFolderPicker: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -111,7 +112,9 @@ fun ChatScreen(
                 onToggleAutonomous = onToggleAutonomous,
                 onOpenDrawer = onOpenMenu,
                 onOpenModelPicker = { showModelPicker = true },
-                onNewChat = onClearChat
+                onNewChat = onClearChat,
+                workspaceName = workspaceName,
+                onOpenFolderPicker = onOpenFolderPicker
             )
         },
         bottomBar = {

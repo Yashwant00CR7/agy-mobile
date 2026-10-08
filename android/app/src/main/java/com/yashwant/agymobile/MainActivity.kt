@@ -86,6 +86,7 @@ class MainActivity : ComponentActivity() {
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
+                var showFolderPickerModal by remember { mutableStateOf(false) }
 
                 val workspaceDir = File(workspaceInfo.currentPath)
                 val workspaceName = workspaceDir.name.ifBlank { "Workspace" }
@@ -126,7 +127,7 @@ class MainActivity : ComponentActivity() {
                             onCloseDrawer = closeDrawer,
                             onOpenFolderPicker = {
                                 closeDrawer()
-                                openDocumentTreeLauncher.launch(null)
+                                showFolderPickerModal = true
                             },
                             deviceShortcuts = viewModel.getDeviceShortcuts()
                         )
@@ -156,7 +157,8 @@ class MainActivity : ComponentActivity() {
                         onSelectEffort = { viewModel.setEffort(it) },
                         onClearChat = { viewModel.clearChat() },
                         hasStoragePermission = hasStorage,
-                        onRequestStoragePermission = { requestStoragePermission() }
+                        onRequestStoragePermission = { requestStoragePermission() },
+                        onOpenFolderPicker = { showFolderPickerModal = true }
                     )
                 }
 
@@ -170,6 +172,23 @@ class MainActivity : ComponentActivity() {
                         onSaveApiKey = { key -> viewModel.saveApiKey(key) },
                         onImportJson = { json -> viewModel.importCredentials(json) },
                         onSignOut = { viewModel.signOut() }
+                    )
+                }
+
+                if (showFolderPickerModal) {
+                    com.yashwant.agymobile.ui.components.DeviceFolderPickerModal(
+                        initialDirectory = workspaceDir,
+                        onSelectDirectory = { dir ->
+                            if (dir.absolutePath.startsWith("/storage/") && !hasStoragePermission()) {
+                                requestStoragePermission()
+                            }
+                            viewModel.selectWorkspace(dir)
+                            showFolderPickerModal = false
+                        },
+                        onDismiss = { showFolderPickerModal = false },
+                        hasStoragePermission = hasStorage,
+                        onRequestStoragePermission = { requestStoragePermission() },
+                        deviceShortcuts = viewModel.getDeviceShortcuts()
                     )
                 }
             }
