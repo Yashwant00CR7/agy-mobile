@@ -13,13 +13,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.*
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
 import com.yashwant.agymobile.service.AgyAgentService
 import com.yashwant.agymobile.ui.components.AuthBottomSheet
-import com.yashwant.agymobile.ui.drawers.WorkspaceBottomSheet
+import com.yashwant.agymobile.ui.drawers.ChatGptDrawer
 import com.yashwant.agymobile.ui.screens.ChatScreen
 import com.yashwant.agymobile.ui.theme.AgyTheme
 import com.yashwant.agymobile.ui.util.BrowserHelper
 import com.yashwant.agymobile.viewmodel.AgyViewModel
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
@@ -69,36 +73,70 @@ class MainActivity : ComponentActivity() {
                 val showAuthSheet by viewModel.showAuthSheet.collectAsState()
                 val selectedModel by viewModel.selectedModel.collectAsState()
 
-                var showWorkspaceSheet by remember { mutableStateOf(false) }
+                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                val coroutineScope = rememberCoroutineScope()
 
                 val workspaceDir = File(workspaceInfo.currentPath)
                 val workspaceName = workspaceDir.name.ifBlank { "Workspace" }
                 val hasStorage = hasStoragePermission()
 
-                ChatScreen(
-                    messages = messages,
-                    promptText = promptText,
-                    onPromptChange = { viewModel.onPromptChange(it) },
-                    isRunning = isRunning,
-                    isAutonomous = isAutonomous,
-                    onToggleAutonomous = { viewModel.toggleAutonomous() },
-                    workspaceName = workspaceName,
-                    gitBranch = workspaceInfo.gitBranch,
-                    onOpenMenu = { showWorkspaceSheet = true },
-                    onSend = { viewModel.sendPrompt(boundService) },
-                    onCancel = { viewModel.cancel(boundService) },
-                    onApprove = { toolId -> viewModel.resolveApproval(toolId, true, boundService) },
-                    onDeny = { toolId -> viewModel.resolveApproval(toolId, false, boundService) },
-                    onVoiceClick = { toggleVoiceDictation() },
-                    isVoiceRecording = isVoiceRecording,
-                    authState = authState,
-                    onOpenAuth = { viewModel.openAuthSheet() },
-                    selectedModel = selectedModel,
-                    onSelectModel = { viewModel.selectModel(it) },
-                    onClearChat = { viewModel.clearChat() },
-                    hasStoragePermission = hasStorage,
-                    onRequestStoragePermission = { requestStoragePermission() }
-                )
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    drawerContent = {
+                        ChatGptDrawer(
+                            workspaceInfo = workspaceInfo,
+                            conversations = conversations,
+                            onSelectDirectory = { dir ->
+                                viewModel.selectWorkspace(dir)
+                                coroutineScope.launch { drawerState.close() }
+                            },
+                            onCreateProject = { name ->
+                                viewModel.createProject(name)
+                                coroutineScope.launch { drawerState.close() }
+                            },
+                            onResumeConversation = { id ->
+                                viewModel.resumeConversation(id)
+                                coroutineScope.launch { drawerState.close() }
+                            },
+                            onNewChat = {
+                                viewModel.clearChat()
+                                coroutineScope.launch { drawerState.close() }
+                            },
+                            authState = authState,
+                            onOpenAuth = {
+                                viewModel.openAuthSheet()
+                                coroutineScope.launch { drawerState.close() }
+                            },
+                            onSignOut = { viewModel.signOut() },
+                            onCloseDrawer = { coroutineScope.launch { drawerState.close() } }
+                        )
+                    }
+                ) {
+                    ChatScreen(
+                        messages = messages,
+                        promptText = promptText,
+                        onPromptChange = { viewModel.onPromptChange(it) },
+                        isRunning = isRunning,
+                        isAutonomous = isAutonomous,
+                        onToggleAutonomous = { viewModel.toggleAutonomous() },
+                        workspaceName = workspaceName,
+                        gitBranch = workspaceInfo.gitBranch,
+                        onOpenMenu = { coroutineScope.launch { drawerState.open() } },
+                        onSend = { viewModel.sendPrompt(boundService) },
+                        onCancel = { viewModel.cancel(boundService) },
+                        onApprove = { toolId -> viewModel.resolveApproval(toolId, true, boundService) },
+                        onDeny = { toolId -> viewModel.resolveApproval(toolId, false, boundService) },
+                        onVoiceClick = { toggleVoiceDictation() },
+                        isVoiceRecording = isVoiceRecording,
+                        authState = authState,
+                        onOpenAuth = { viewModel.openAuthSheet() },
+                        selectedModel = selectedModel,
+                        onSelectModel = { viewModel.selectModel(it) },
+                        onClearChat = { viewModel.clearChat() },
+                        hasStoragePermission = hasStorage,
+                        onRequestStoragePermission = { requestStoragePermission() }
+                    )
+                }
 
                 if (showAuthSheet) {
                     AuthBottomSheet(
@@ -109,20 +147,6 @@ class MainActivity : ComponentActivity() {
                         onSubmitCode = { code -> viewModel.submitAuthCode(code) },
                         onSaveApiKey = { key -> viewModel.saveApiKey(key) },
                         onImportJson = { json -> viewModel.importCredentials(json) },
-                        onSignOut = { viewModel.signOut() }
-                    )
-                }
-
-                if (showWorkspaceSheet) {
-                    WorkspaceBottomSheet(
-                        workspaceInfo = workspaceInfo,
-                        conversations = conversations,
-                        onSelectDirectory = { dir -> viewModel.selectWorkspace(dir) },
-                        onCreateProject = { name -> viewModel.createProject(name) },
-                        onResumeConversation = { id -> viewModel.resumeConversation(id) },
-                        onDismiss = { showWorkspaceSheet = false },
-                        authState = authState,
-                        onOpenAuth = { viewModel.openAuthSheet() },
                         onSignOut = { viewModel.signOut() }
                     )
                 }
