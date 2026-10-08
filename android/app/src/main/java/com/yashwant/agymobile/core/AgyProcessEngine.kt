@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 import java.io.BufferedReader
+import java.io.BufferedWriter
 import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -32,8 +33,40 @@ class AgyProcessEngine(
     private val pendingApprovals = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
     @Volatile private var turnCompleteEmitted = false
 
+    // Persistent stream-json daemon session management (REQ-25)
+    data class DaemonConfig(
+        val conversationId: String?,
+        val workspaceDir: String?,
+        val modelSlug: String,
+        val effort: String,
+        val autonomous: Boolean
+    )
+    private var daemonConfig: DaemonConfig? = null
+    private var daemonWriter: BufferedWriter? = null
+    private var daemonReaderJob: Job? = null
+    private var daemonErrorJob: Job? = null
+    private var currentTurnDeferred: CompletableDeferred<Unit>? = null
+
     fun getActiveConversationId(): String? = activeConversationId
     fun isRunning(): Boolean = _status.value == AgentStatus.RUNNING || _status.value == AgentStatus.WAITING_APPROVAL
+
+    fun stopDaemon() {
+        try {
+            daemonReaderJob?.cancel()
+            daemonErrorJob?.cancel()
+            daemonWriter?.close()
+        } catch (_: Exception) {}
+        try {
+            activeProcess?.destroyForcibly()
+        } catch (_: Exception) {}
+        daemonReaderJob = null
+        daemonErrorJob = null
+        daemonWriter = null
+        activeProcess = null
+        daemonConfig = null
+        currentTurnDeferred?.complete(Unit)
+        currentTurnDeferred = null
+    }
 
     fun parseLine(line: String, autonomous: Boolean): AgyEvent? {
         val trimmed = line.trim()
@@ -59,14 +92,21 @@ class AgyProcessEngine(
             // Real agy step_update schema
             if (type == "step_update" && json.has("step_update")) {
                 val step = json.getJSONObject("step_update")
-
-                if (step.has("thought") || step.has("thinking_delta") || step.has("thinking")) {
-                    val delta = step.optString("thought", step.optString("thinking_delta", step.optString("thinking", "")))
-                    return AgyEvent.Thought(delta)
-                }
+                val stepType = step.optString("step_type", "")
 
                 if (step.has("text_delta")) {
                     return AgyEvent.Text(step.getString("text_delta"))
+                }
+
+                if (step.has("thought_delta")) {
+                    return AgyEvent.Thought(step.getString("thought_delta"))
+                }
+
+                if (stepType == "thought" || stepType == "thinking") {
+                    val delta = step.optString("delta", step.optString("text_delta", step.optString("thought", "")))
+                    if (delta.isNotEmpty()) {
+                        return AgyEvent.Thought(delta)
+                    }
                 }
 
                 if (step.has("tool_call") || step.optString("step_type") == "tool_call" || step.optString("step_type") == "tool_use") {
@@ -105,6 +145,10 @@ class AgyProcessEngine(
             // Real agy result schema
             if (type == "result" && json.has("result")) {
                 val res = json.getJSONObject("result")
+                if (res.optString("status") == "ERROR") {
+                    val err = res.optString("error", "Unknown agent error")
+                    return AgyEvent.Error(err)
+                }
                 val summary = if (res.has("response")) res.getString("response") else if (res.has("status")) res.getString("status") else null
                 turnCompleteEmitted = true
                 return AgyEvent.TurnComplete(activeConversationId, summary)
@@ -174,7 +218,6 @@ class AgyProcessEngine(
 
     suspend fun processStream(inputStream: InputStream, autonomous: Boolean) = withContext(dispatcher) {
         val reader = BufferedReader(InputStreamReader(inputStream))
-        var line: String? = null
 
         while (isActive) {
             val currentLine = reader.readLine() ?: break
@@ -196,6 +239,10 @@ class AgyProcessEngine(
                     }
                 } else {
                     _events.emit(event)
+                    if (event is AgyEvent.TurnComplete || event is AgyEvent.Error) {
+                        _status.value = if (event is AgyEvent.Error) AgentStatus.ERROR else AgentStatus.IDLE
+                        currentTurnDeferred?.complete(Unit)
+                    }
                 }
             }
         }
@@ -218,105 +265,160 @@ class AgyProcessEngine(
         turnCompleteEmitted = false
         _status.value = AgentStatus.RUNNING
 
+        val rawModelSlug = BootstrapManager.toCanonicalModelSlug(request.model)
+        val isFixed = BootstrapManager.isFixedTierModel(rawModelSlug)
+        val cleanModelSlug = if (!isFixed) {
+            rawModelSlug.removeSuffix("-high").removeSuffix("-medium").removeSuffix("-low")
+        } else rawModelSlug
+
+        val effort = if (isFixed) {
+            BootstrapManager.fixedTierFor(rawModelSlug) ?: "high"
+        } else {
+            request.effort?.lowercase() ?: "low"
+        }
+
+        val targetConfig = DaemonConfig(
+            conversationId = request.conversationId,
+            workspaceDir = request.workspaceDir,
+            modelSlug = cleanModelSlug,
+            effort = effort,
+            autonomous = request.autonomous
+        )
+
         return scope.launch {
             _events.emit(AgyEvent.Status(AgentStatus.RUNNING, "Starting agy in ${request.workspaceDir ?: "."}"))
             _events.emit(AgyEvent.TurnStart(request.conversationId))
 
-            val args = mutableListOf(
-                agyExecutable.absolutePath,
-                "-p", request.prompt,
-                "--output-format", "stream-json",
-                "--mode", "accept-edits"
-            )
+            val turnDeferred = CompletableDeferred<Unit>()
+            currentTurnDeferred = turnDeferred
 
-            if (request.autonomous) {
-                args.add("--dangerously-skip-permissions")
-            }
+            val isDaemonAlive = activeProcess?.isAlive == true
+            val canReuseDaemon = isDaemonAlive && daemonConfig == targetConfig && daemonWriter != null
 
-            if (!request.conversationId.isNullOrBlank()) {
-                args.add("--conversation")
-                args.add(request.conversationId)
-            }
-
-            val modelSlug = BootstrapManager.toCanonicalModelSlug(request.model)
-            args.add("--model")
-            args.add(modelSlug)
-
-            val effort = when {
-                !request.effort.isNullOrBlank() -> request.effort.lowercase()
-                modelSlug.endsWith("-high") -> "high"
-                modelSlug.endsWith("-low") -> "low"
-                modelSlug.endsWith("-medium") -> "medium"
-                else -> "low"
-            }
-            args.add("--effort")
-            args.add(effort)
-
-            val processBuilder = ProcessBuilder(args)
-            val finalEnv = envVars.toMutableMap()
-            if (request.workspaceDir != null) {
-                val dir = File(request.workspaceDir)
-                if (dir.exists()) {
-                    processBuilder.directory(dir)
+            if (canReuseDaemon) {
+                // REQ-25: Fast path - Reuse persistent process over stdin (Zero cold start!)
+                try {
+                    val userMsg = JSONObject().apply {
+                        put("event", "user")
+                        put("message", JSONObject().apply {
+                            put("content", request.prompt)
+                        })
+                    }
+                    val writer = daemonWriter!!
+                    writer.write(userMsg.toString())
+                    writer.newLine()
+                    writer.flush()
+                } catch (_: Exception) {
+                    stopDaemon()
                 }
-                finalEnv["ANTIGRAVITY_WORKSPACE_ROOT"] = request.workspaceDir
-                finalEnv["WORKSPACE_DIR"] = request.workspaceDir
-                finalEnv["PWD"] = request.workspaceDir
             }
 
-            processBuilder.environment().putAll(finalEnv)
+            if (activeProcess?.isAlive != true || daemonWriter == null) {
+                // Cold path: spawn daemon process with stream-json
+                stopDaemon()
+
+                val args = mutableListOf(
+                    agyExecutable.absolutePath,
+                    "--input-format", "stream-json",
+                    "--output-format", "stream-json",
+                    "--mode", "accept-edits"
+                )
+
+                if (request.autonomous) {
+                    args.add("--dangerously-skip-permissions")
+                }
+
+                if (!request.conversationId.isNullOrBlank()) {
+                    args.add("--conversation")
+                    args.add(request.conversationId)
+                }
+
+                args.add("--model")
+                args.add(cleanModelSlug)
+
+                // REQ-24: Only pass --effort if model is NOT fixed-tier
+                if (!isFixed) {
+                    args.add("--effort")
+                    args.add(effort)
+                }
+
+                val processBuilder = ProcessBuilder(args)
+                val finalEnv = envVars.toMutableMap()
+                if (request.workspaceDir != null) {
+                    val dir = File(request.workspaceDir)
+                    if (dir.exists()) {
+                        processBuilder.directory(dir)
+                    }
+                    finalEnv["ANTIGRAVITY_WORKSPACE_ROOT"] = request.workspaceDir
+                    finalEnv["WORKSPACE_DIR"] = request.workspaceDir
+                    finalEnv["PWD"] = request.workspaceDir
+                }
+                processBuilder.environment().putAll(finalEnv)
+
+                try {
+                    val process = processBuilder.start()
+                    activeProcess = process
+                    daemonConfig = targetConfig
+                    val writer = process.outputStream.bufferedWriter()
+                    daemonWriter = writer
+
+                    val errorBuffer = StringBuilder()
+                    daemonErrorJob = launch(Dispatchers.IO) {
+                        try {
+                            val errReader = process.errorStream.bufferedReader()
+                            var errLine: String?
+                            while (isActive) {
+                                errLine = errReader.readLine() ?: break
+                                errorBuffer.append(errLine).append("\n")
+                                val authUrl = AuthManager.extractOAuthUrl(errLine)
+                                if (authUrl != null) {
+                                    _events.emit(AgyEvent.AuthRequired(authUrl))
+                                }
+                            }
+                        } catch (_: Exception) {}
+                    }
+
+                    daemonReaderJob = launch(Dispatchers.IO) {
+                        try {
+                            processStream(process.inputStream, request.autonomous)
+                        } catch (e: Exception) {
+                            if (e !is CancellationException) {
+                                _events.emit(AgyEvent.Error(e.message ?: "Stream read error"))
+                            }
+                        } finally {
+                            if (_status.value == AgentStatus.RUNNING) {
+                                val rawErr = errorBuffer.toString().trim()
+                                val cleanErr = parseAgyErrorMessage(rawErr, process.exitValueSafe())
+                                _events.emit(AgyEvent.Error(cleanErr))
+                                _status.value = AgentStatus.ERROR
+                            }
+                            turnDeferred.complete(Unit)
+                        }
+                    }
+
+                    // Send initial turn prompt over stdin
+                    val userMsg = JSONObject().apply {
+                        put("event", "user")
+                        put("message", JSONObject().apply {
+                            put("content", request.prompt)
+                        })
+                    }
+                    writer.write(userMsg.toString())
+                    writer.newLine()
+                    writer.flush()
+                } catch (e: Exception) {
+                    stopDaemon()
+                    if (e !is CancellationException) {
+                        _events.emit(AgyEvent.Error(e.message ?: "Failed to start agent process"))
+                        _status.value = AgentStatus.ERROR
+                    }
+                    turnDeferred.complete(Unit)
+                }
+            }
 
             try {
-                val process = processBuilder.start()
-                activeProcess = process
-
-                val errorBuffer = StringBuilder()
-                val errorJob = launch(Dispatchers.IO) {
-                    try {
-                        val errReader = process.errorStream.bufferedReader()
-                        var errLine: String?
-                        while (isActive) {
-                            errLine = errReader.readLine() ?: break
-                            errorBuffer.append(errLine).append("\n")
-                            val authUrl = AuthManager.extractOAuthUrl(errLine)
-                            if (authUrl != null) {
-                                _events.emit(AgyEvent.AuthRequired(authUrl))
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-
-                // Process standard output
-                val streamJob = launch {
-                    processStream(process.inputStream, request.autonomous)
-                }
-
-                val exitCode = process.waitFor()
-                streamJob.join()
-                errorJob.cancelAndJoin()
-
-                if (exitCode == 0) {
-                    if (!turnCompleteEmitted) {
-                        turnCompleteEmitted = true
-                        _events.emit(AgyEvent.TurnComplete(activeConversationId, "Turn completed successfully"))
-                    }
-                    _status.value = AgentStatus.IDLE
-                    _events.emit(AgyEvent.Status(AgentStatus.IDLE))
-                } else {
-                    val rawErr = errorBuffer.toString().trim()
-                    val cleanErr = parseAgyErrorMessage(rawErr, exitCode)
-                    _events.emit(AgyEvent.Error(cleanErr))
-                    _status.value = AgentStatus.ERROR
-                    _events.emit(AgyEvent.Status(AgentStatus.ERROR, "Process exited with code $exitCode"))
-                }
-            } catch (e: Exception) {
-                if (e !is CancellationException) {
-                    _events.emit(AgyEvent.Error(e.message ?: "Unknown process execution error"))
-                    _status.value = AgentStatus.ERROR
-                    _events.emit(AgyEvent.Status(AgentStatus.ERROR, e.message))
-                }
+                turnDeferred.await()
             } finally {
-                activeProcess = null
                 if (_status.value != AgentStatus.ERROR) {
                     _status.value = AgentStatus.IDLE
                 }
@@ -324,14 +426,20 @@ class AgyProcessEngine(
         }
     }
 
-    fun sendInput(input: String): Boolean {
-        val proc = activeProcess ?: return false
+    private fun Process.exitValueSafe(): Int {
         return try {
-            proc.outputStream.bufferedWriter().apply {
-                write(input)
-                newLine()
-                flush()
-            }
+            exitValue()
+        } catch (_: Exception) {
+            -1
+        }
+    }
+
+    fun sendInput(input: String): Boolean {
+        val writer = daemonWriter ?: return false
+        return try {
+            writer.write(input)
+            writer.newLine()
+            writer.flush()
             true
         } catch (_: Exception) {
             false
@@ -339,9 +447,7 @@ class AgyProcessEngine(
     }
 
     fun cancel(): Boolean {
-        val proc = activeProcess ?: return false
-        proc.destroyForcibly()
-        activeProcess = null
+        stopDaemon()
         _status.value = AgentStatus.IDLE
         scope.launch {
             _events.emit(AgyEvent.Status(AgentStatus.IDLE, "Turn cancelled"))

@@ -29,31 +29,31 @@ val AvailableModelOptions = listOf(
     ModelOption(
         id = "Gemini 3.8 Flash (Medium)",
         name = "Gemini 3.8 Flash",
-        tag = "Fast • Balanced (Default)",
-        description = "Recommended. Sub-second streaming with balanced reasoning."
-    ),
-    ModelOption(
-        id = "Gemini 3.8 Flash (High)",
-        name = "Gemini 3.8 Flash",
-        tag = "Deep Reasoning",
-        description = "Extended reasoning chain with maximum tool calling accuracy."
+        tag = "⚡ Dynamic Effort (Default)",
+        description = "Recommended. Sub-second streaming with customizable reasoning."
     ),
     ModelOption(
         id = "Gemini 3.7 Flash (High)",
         name = "Gemini 3.7 Flash",
         tag = "Thinking Hybrid",
-        description = "Specialized for algorithmic coding and complex refactors."
+        description = "Specialized for algorithmic coding with customizable reasoning."
     ),
     ModelOption(
         id = "Gemini 3.1 Pro (High)",
-        name = "Gemini 3.1 Pro",
-        tag = "Deep Reasoning",
+        name = "Gemini 3.1 Pro (High)",
+        tag = "🧠 High Thought • Fixed",
         description = "Large context reasoning engine for complex architecture planning."
+    ),
+    ModelOption(
+        id = "Gemini 3.1 Pro (Low)",
+        name = "Gemini 3.1 Pro (Low)",
+        tag = "⚡ Low Latency • Fixed",
+        description = "Direct Pro reasoning engine without extended thinking delay."
     ),
     ModelOption(
         id = "Claude Sonnet 4.6 (Thinking)",
         name = "Claude Sonnet 4.6",
-        tag = "Extended Thought",
+        tag = "🧠 Extended Thought • Fixed",
         description = "Extended reasoning chain with deep analytical verification."
     )
 )
@@ -117,6 +117,10 @@ fun ModelSelectorBottomSheet(
                 }
             }
 
+            val isFixedModel = com.yashwant.agymobile.core.BootstrapManager.isFixedTierModel(selectedModel)
+            val fixedTier = com.yashwant.agymobile.core.BootstrapManager.fixedTierFor(selectedModel)
+            val effectiveEffort = if (isFixedModel && fixedTier != null) fixedTier else selectedEffort
+
             // Interactive Reasoning Effort Control Bar
             Column(
                 modifier = Modifier
@@ -133,20 +137,29 @@ fun ModelSelectorBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "REASONING EFFORT",
+                        text = if (isFixedModel) "REASONING EFFORT (FIXED TIER)" else "REASONING EFFORT",
                         color = TextMuted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.8.sp
                     )
                     Text(
-                        text = when (selectedEffort.lowercase()) {
-                            "low" -> "⚡ Instant (<1s)"
-                            "medium" -> "⚖️ Balanced (~3s)"
-                            "high" -> "🧠 Deep Thought"
-                            else -> "⚡ Instant"
+                        text = if (isFixedModel) {
+                            when (effectiveEffort.lowercase()) {
+                                "low" -> "⚡ Low • Locked"
+                                "medium" -> "⚖️ Medium • Locked"
+                                "high" -> "🧠 High • Locked"
+                                else -> "🔒 Locked"
+                            }
+                        } else {
+                            when (effectiveEffort.lowercase()) {
+                                "low" -> "⚡ Instant (<1s)"
+                                "medium" -> "⚖️ Balanced (~3s)"
+                                "high" -> "🧠 Deep Thought"
+                                else -> "⚡ Instant"
+                            }
                         },
-                        color = when (selectedEffort.lowercase()) {
+                        color = when (effectiveEffort.lowercase()) {
                             "low" -> AntigravityCyan
                             "high" -> AntigravityViolet
                             else -> AntigravityBlue
@@ -166,36 +179,41 @@ fun ModelSelectorBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val effortOptions = listOf(
-                        Triple("low", "⚡ Low", "Instant reply"),
-                        Triple("medium", "⚖️ Med", "Balanced CoT"),
-                        Triple("high", "🧠 High", "Deep CoT")
+                        Triple("low", "⚡ Low", if (isFixedModel) (if (effectiveEffort == "low") "Active" else "Locked") else "Instant reply"),
+                        Triple("medium", "⚖️ Med", if (isFixedModel) (if (effectiveEffort == "medium") "Active" else "Locked") else "Balanced CoT"),
+                        Triple("high", "🧠 High", if (isFixedModel) (if (effectiveEffort == "high") "Active" else "Locked") else "Deep CoT")
                     )
 
                     effortOptions.forEach { (level, title, subtitle) ->
-                        val isSelected = selectedEffort.equals(level, ignoreCase = true)
+                        val isSelected = effectiveEffort.equals(level, ignoreCase = true)
+                        val isClickable = !isFixedModel
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (isSelected) AntigravityBlue else Color.Transparent
+                                    if (isSelected) {
+                                        if (isFixedModel) AntigravityBlue.copy(alpha = 0.7f) else AntigravityBlue
+                                    } else Color.Transparent
                                 )
-                                .clickable {
-                                    onEffortSelect(level)
-                                }
+                                .then(
+                                    if (isClickable) {
+                                        Modifier.clickable { onEffortSelect(level) }
+                                    } else Modifier
+                                )
                                 .padding(vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = title,
-                                    color = if (isSelected) Color.White else TextSecondary,
+                                    color = if (isSelected) Color.White else TextMuted,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                                 Text(
                                     text = subtitle,
-                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else TextMuted,
+                                    color = if (isSelected) Color.White.copy(alpha = 0.85f) else TextMuted.copy(alpha = 0.6f),
                                     fontSize = 9.sp
                                 )
                             }
@@ -221,6 +239,10 @@ fun ModelSelectorBottomSheet(
                         )
                         .clickable {
                             onModelSelect(option.id)
+                            val tier = com.yashwant.agymobile.core.BootstrapManager.fixedTierFor(option.id)
+                            if (tier != null) {
+                                onEffortSelect(tier)
+                            }
                             onDismiss()
                         }
                         .padding(14.dp)

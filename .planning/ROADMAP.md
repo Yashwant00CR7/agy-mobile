@@ -22,3 +22,12 @@
   - **Goal:** Move 70+ non-essential skills to on-demand library so input tokens drop from 20k to <1k, implement an interactive effort selector bar (`Low ⚡`, `Medium ⚖️`, `High 🧠`) in the UI, and connect it to `AgyProcessEngine`.
   - **Requirements Addressed:** REQ-20, REQ-21, REQ-22, REQ-23.
   - **Success Criteria:** Input tokens drop significantly, user can switch effort dynamically from within the app, tests pass, APK builds cleanly.
+
+### Milestone v1.5.0: Model Conflict Resolution & Persistent Stream-JSON Daemon
+*Goal:* Completely eliminate model selection and effort collision crashes, and run turns with sub-second response times using a persistent stream-json background process.
+
+#### Phases
+- [x] **Phase 05: Model Conflict Resolution & Persistent Stream-JSON Daemon** (Completed)
+  - **Goal:** Strict base-model mapping with effort flag omission for fixed-tier models, persistent `libagy.so` daemon keeping stdin open to slash turn latency from 14s to ~1-2s, and UI effort synchronization.
+  - **Requirements Addressed:** REQ-24, REQ-25, REQ-26, REQ-27.
+  - **Success Criteria:** Gemini 3.1 Pro and Claude run without CLI effort crashes, turns 2+ stream in under 2 seconds, all tests pass, and APK is verified.

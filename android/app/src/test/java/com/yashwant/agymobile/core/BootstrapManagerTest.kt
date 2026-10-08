@@ -150,6 +150,26 @@ class BootstrapManagerTest {
     }
 
     @Test
+    fun testFixedTierModelIdentification() {
+        assertTrue(BootstrapManager.isFixedTierModel("Gemini 3.1 Pro (High)"))
+        assertTrue(BootstrapManager.isFixedTierModel("gemini-3.1-pro-high"))
+        assertTrue(BootstrapManager.isFixedTierModel("gemini-3.1-pro-low"))
+        assertTrue(BootstrapManager.isFixedTierModel("Claude Sonnet 4.6 (Thinking)"))
+        assertTrue(BootstrapManager.isFixedTierModel("claude-sonnet-4-6"))
+        assertTrue(BootstrapManager.isFixedTierModel("GPT-OSS 120B (Medium)"))
+
+        assertFalse(BootstrapManager.isFixedTierModel("Gemini 3.8 Flash"))
+        assertFalse(BootstrapManager.isFixedTierModel("gemini-3.8-flash-medium"))
+        assertFalse(BootstrapManager.isFixedTierModel("Gemini 3.7 Flash"))
+
+        assertEquals("high", BootstrapManager.fixedTierFor("Gemini 3.1 Pro (High)"))
+        assertEquals("low", BootstrapManager.fixedTierFor("Gemini 3.1 Pro (Low)"))
+        assertEquals("high", BootstrapManager.fixedTierFor("Claude Sonnet 4.6"))
+        assertEquals("medium", BootstrapManager.fixedTierFor("GPT-OSS 120B"))
+        assertNull(BootstrapManager.fixedTierFor("Gemini 3.8 Flash"))
+    }
+
+    @Test
     fun testApiKeyManagement() {
         val root = tempFolder.newFolder("app_files_apikey")
         val manager = BootstrapManager(root)

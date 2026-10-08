@@ -99,4 +99,20 @@ class AgyProcessEngineTest {
         val engine = AgyProcessEngine()
         assertFalse(engine.sendInput("dummy-auth-code"))
     }
+
+    @Test
+    fun testParseLineErrorResult() {
+        val engine = AgyProcessEngine()
+        val evErr = engine.parseLine("{\"event\":\"result\",\"result\":{\"status\":\"ERROR\",\"error\":\"invalid model selection conflicts with --effort\"}}", true)
+        assertTrue(evErr is AgyEvent.Error)
+        assertEquals("invalid model selection conflicts with --effort", (evErr as AgyEvent.Error).message)
+    }
+
+    @Test
+    fun testDaemonStopResetsState() {
+        val engine = AgyProcessEngine()
+        assertFalse(engine.isRunning())
+        engine.stopDaemon()
+        assertEquals(AgentStatus.IDLE, engine.status.value)
+    }
 }

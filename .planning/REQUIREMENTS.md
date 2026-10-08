@@ -24,8 +24,16 @@
 ---
 
 ## Milestone v1.4.0: Context Minimization & In-App Reasoning Effort Control
-
-- [x] **REQ-20**: **Lean Skills Profile**: Prune active skills in `~/.gemini/config/skills/` down to core essentials (`ralph-loop`, `gsd-quick`, `gsd-fast`), moving remaining 70+ skills to `~/.gemini/skills-library/` on-demand storage. Immediately eliminates ~15,000 to 20,000 input tokens from every turn.
-- [x] **REQ-21**: **In-App Reasoning Effort Bar**: Build an interactive, in-app reasoning effort selector bar (`Low ⚡`, `Medium ⚖️`, `High 🧠`) allowing the user to seamlessly test and control thinking effort in real time.
-- [x] **REQ-22**: **Effort Integration in Engine & TopBar**: Wire the selected effort state (`low`, `medium`, `high`) through `AgyViewModel`, display the active effort status badge in the UI, and pass `--effort <level>` directly to `libagy.so`. Default to `low` (instant) for testing.
+- [x] **REQ-20**: **Lean Skills Profile**: Prune active skills in `~/.gemini/config/skills/` down to core essentials (`ralph-loop`, `gsd-quick`, `gsd-fast`), moving remaining 70+ skills to `~/.gemini/skills-library/` on-demand storage.
+- [x] **REQ-21**: **In-App Reasoning Effort Bar**: Build an interactive, in-app reasoning effort selector bar (`Low ⚡`, `Medium ⚖️`, `High 🧠`).
+- [x] **REQ-22**: **Effort Integration in Engine & TopBar**: Wire the selected effort state (`low`, `medium`, `high`) through `AgyViewModel`.
 - [x] **REQ-23**: **Verification & Release Build**: Ensure all unit tests pass (`./gradlew test`) and compile updated debug APK (`./gradlew assembleDebug`).
+
+---
+
+## Milestone v1.5.0: Model Conflict Resolution & Persistent Stream-JSON Daemon
+
+- [x] **REQ-24**: **Fixed-Tier Model Mapping & Conflict Elimination**: Enforce strict base-model mapping in `BootstrapManager` and `AgyProcessEngine`. If a model has a fixed tier (e.g. `Gemini 3.1 Pro (High)`, `Gemini 3.1 Pro (Low)`, `Claude Sonnet 4.6`, `Claude Opus 4.6`, `GPT-OSS 120B`), omit the `--effort` CLI argument entirely to prevent `invalid model selection conflicts with --effort` crashes. For dynamic models (`Gemini 3.8 Flash`, `3.7 Flash`, `3.6 Flash`), supply the clean base slug with `--effort <level>`.
+- [x] **REQ-25**: **Persistent Stream-JSON Daemon in AgyProcessEngine**: Refactor `AgyProcessEngine` to keep the native `libagy.so` process alive across turns using `--input-format stream-json --output-format stream-json`. Send prompts over stdin via `{"event":"user","message":{"content":prompt}}`. Cold start (10-14s) occurs once; all subsequent turns execute in ~1-2 seconds.
+- [x] **REQ-26**: **UI Synchronization & Effort Locking**: In `ModelSelectorBottomSheet` and `ChatGptTopBar`, automatically lock and reflect the model's fixed tier when selected (e.g. showing "High (Locked)" or disabling conflicting effort buttons for Gemini 3.1 Pro / Claude), preventing invalid user selections.
+- [x] **REQ-27**: **Comprehensive Verification & Build**: Update unit tests in `AgyProcessEngineTest` and `BootstrapManagerTest`, run `./gradlew test`, and build updated release APK `android/agy-mobile-debug.apk`.

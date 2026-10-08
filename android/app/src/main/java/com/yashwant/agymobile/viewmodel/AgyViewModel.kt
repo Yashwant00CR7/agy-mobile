@@ -52,6 +52,10 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun selectModel(model: String) {
         _selectedModel.value = model
         bootstrapManager.saveSelectedModel(model)
+        val fixedTier = BootstrapManager.fixedTierFor(model)
+        if (fixedTier != null) {
+            _selectedEffort.value = fixedTier
+        }
         dismissModelErrors()
     }
 
@@ -151,6 +155,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resumeConversation(convId: String) {
+        if (convId != activeConversationId) {
+            boundServiceInstance?.engine?.stopDaemon()
+        }
         saveCurrentSession()
         val session = conversationRepository.loadConversation(convId)
         if (session != null) {
@@ -223,6 +230,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         saveCurrentSession()
         _messages.value = emptyList()
         activeConversationId = null
+        boundServiceInstance?.engine?.stopDaemon()
     }
 
     fun submitAuthCode(code: String) {

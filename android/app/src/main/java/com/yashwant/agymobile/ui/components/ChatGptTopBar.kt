@@ -78,7 +78,10 @@ fun ChatGptTopBar(
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        val (effortBadge, effortColor) = when (selectedEffort.lowercase()) {
+                        val isFixed = com.yashwant.agymobile.core.BootstrapManager.isFixedTierModel(selectedModel)
+                        val fixedTier = com.yashwant.agymobile.core.BootstrapManager.fixedTierFor(selectedModel)
+                        val eff = if (isFixed && fixedTier != null) fixedTier else selectedEffort
+                        val (effortBadge, effortColor) = when (eff.lowercase()) {
                             "low" -> Pair("⚡ Low", AntigravityCyan)
                             "high" -> Pair("🧠 High", AntigravityViolet)
                             else -> Pair("⚖️ Med", AntigravityBlue)

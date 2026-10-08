@@ -680,6 +680,24 @@ class BootstrapManager(
             }
         }
 
+        fun isFixedTierModel(slugOrId: String?): Boolean {
+            val s = slugOrId?.trim()?.lowercase() ?: return false
+            return s.contains("3.1 pro") || s.contains("3.1-pro") ||
+                    s.contains("claude") ||
+                    s.contains("gpt-oss")
+        }
+
+        fun fixedTierFor(slugOrId: String?): String? {
+            val s = slugOrId?.trim()?.lowercase() ?: return null
+            return when {
+                s.contains("3.1 pro (low)") || s == "gemini-3.1-pro-low" -> "low"
+                s.contains("3.1 pro") || s.contains("3.1-pro") -> "high"
+                s.contains("claude") -> "high"
+                s.contains("gpt-oss") -> "medium"
+                else -> null
+            }
+        }
+
         fun toDisplayName(slugOrId: String?): String {
             val s = slugOrId?.trim() ?: return "Gemini 3.8 Flash (Medium)"
             return when {
