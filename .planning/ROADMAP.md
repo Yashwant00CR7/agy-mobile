@@ -26,7 +26,7 @@
 *Goal:* Enable users to open chats directly in any local device directory via Android SAF picker and quick drawer shortcuts, and harden native bash execution so bash calls never fail with "not callable" or errno 13.
 
 #### Phases
-- [ ] **Phase 06: Local Device Folder Workspaces & Native Bash Execution Hardening**
+- [x] **Phase 06: Local Device Folder Workspaces & Native Bash Execution Hardening** (Completed)
   - **Goal:** Add SAF folder picker and drawer shortcuts for local directories (`Downloads`, `Documents`, `/storage/emulated/0`), bind chat workspaces directly to local paths, configure `BASH_ENV` and shell aliases in `BootstrapManager` to resolve `bash` to `libbash.so` cleanly, and add model rules against uncallable `bash` tool hallucination.
   - **Requirements Addressed:** REQ-28, REQ-29, REQ-30, REQ-31.
   - **Success Criteria:** User can pick any phone folder to open/bind chats; bash commands execute reliably without error 13; tests pass and APK compiles.

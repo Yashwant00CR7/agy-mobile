@@ -2,6 +2,7 @@ package com.yashwant.agymobile.core
 
 import com.yashwant.agymobile.model.AgentStatus
 import com.yashwant.agymobile.model.AgyEvent
+import com.yashwant.agymobile.model.PromptRequest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
@@ -114,5 +115,18 @@ class AgyProcessEngineTest {
         assertFalse(engine.isRunning())
         engine.stopDaemon()
         assertEquals(AgentStatus.IDLE, engine.status.value)
+    }
+
+    @Test
+    fun testPromptRequestWithDeviceWorkspaceDir() {
+        val req = PromptRequest(
+            prompt = "List files",
+            conversationId = "conv-folder-1",
+            workspaceDir = "/storage/emulated/0/Download/MyProject",
+            model = "gemini-3.8-flash",
+            effort = "low"
+        )
+        assertEquals("/storage/emulated/0/Download/MyProject", req.workspaceDir)
+        assertEquals("conv-folder-1", req.conversationId)
     }
 }

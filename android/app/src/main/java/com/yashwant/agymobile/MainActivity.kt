@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
+import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.service.AgyAgentService
 import com.yashwant.agymobile.ui.components.AuthBottomSheet
 import com.yashwant.agymobile.ui.drawers.ChatGptDrawer
@@ -98,6 +99,9 @@ class MainActivity : ComponentActivity() {
                             workspaceInfo = workspaceInfo,
                             conversations = conversations,
                             onSelectDirectory = { dir ->
+                                if (dir.absolutePath.startsWith("/storage/") && !hasStoragePermission()) {
+                                    requestStoragePermission()
+                                }
                                 viewModel.selectWorkspace(dir)
                                 closeDrawer()
                             },
@@ -265,27 +269,13 @@ class MainActivity : ComponentActivity() {
             null
         }
 
-        if (docId != null) {
-            val parts = docId.split(":")
-            if (parts.size >= 2) {
-                val type = parts[0]
-                val subPath = parts[1]
-                if ("primary".equals(type, ignoreCase = true)) {
-                    val root = android.os.Environment.getExternalStorageDirectory().absolutePath
-                    return if (subPath.isBlank()) root else "$root/$subPath"
-                } else {
-                    val directPath = "/storage/$type/$subPath"
-                    if (File(directPath).exists()) {
-                        return directPath
-                    }
-                }
-            }
-        }
+        val fromDocId = WorkspaceManager.resolveTreeDocIdToPath(docId)
+        if (fromDocId != null) return fromDocId
 
         val rawPath = uri.path
         if (rawPath != null && rawPath.contains("primary:")) {
             val sub = rawPath.substringAfter("primary:")
-            val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+            val root = WorkspaceManager.getPrimaryStoragePath()
             return if (sub.isBlank()) root else "$root/$sub"
         }
 

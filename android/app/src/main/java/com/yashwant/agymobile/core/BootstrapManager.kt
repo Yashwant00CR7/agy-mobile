@@ -120,6 +120,21 @@ class BootstrapManager(
                     }
                 }
             }
+
+            // 3. Extract system rules
+            val ruleFiles = assetList("rules") ?: emptyArray()
+            val destRulesDir = File(geminiDir, "rules")
+            destRulesDir.mkdirs()
+            for (fileName in ruleFiles) {
+                val stream = assetOpener("rules/$fileName") ?: continue
+                val destFile = File(destRulesDir, fileName)
+                if (!destFile.exists() || destFile.length() == 0L) {
+                    destFile.outputStream().use { out -> stream.copyTo(out) }
+                    count++
+                } else {
+                    stream.close()
+                }
+            }
         } catch (_: Exception) {}
         return count
     }
@@ -241,34 +256,21 @@ class BootstrapManager(
             envFile.setExecutable(true, false)
         } catch (_: Exception) {}
 
-        // Also write a fallback wrapper script in binDir/bash if possible
-        try {
-            val bashScript = File(binDir, "bash")
-            if (!bashScript.exists()) {
-                val scriptContent = """
-                    #!/system/bin/sh
-                    exec "${shell.absolutePath}" "${'$'}@"
-                """.trimIndent()
-                bashScript.writeText(scriptContent)
-                bashScript.setReadable(true, false)
-                bashScript.setExecutable(true, false)
-            }
-        } catch (_: Exception) {}
-
-        // Ensure rules directory and android-runtime rule
+        // Ensure rules directory and system-android rule (REQ-30)
         try {
             val rulesDir = File(geminiDir, "rules")
             rulesDir.mkdirs()
-            val ruleFile = File(rulesDir, "android-runtime.md")
-            if (!ruleFile.exists() || ruleFile.length() == 0L) {
-                ruleFile.writeText(
-                    """
-                    # Android Environment & Shell Execution Policy
-                    - **Shell Execution**: You are running in an Android ARM64 native environment. The native shell is configured via `${'$'}SHELL` (${shell.name}).
-                    - **Command Tooling**: When executing terminal or shell commands, ALWAYS call the official `run_command` tool. NEVER call a tool named `bash`, `sh`, or `execute_command` directly because those names are not callable in this runtime.
-                    - **Environment**: Subshells and scripts inherit `${'$'}SHELL` and `${'$'}BASH_ENV`.
-                    """.trimIndent()
-                )
+            val ruleContent = """
+                # Android Environment & Shell Execution Policy
+                - **Shell Execution**: You are running in an Android ARM64 native environment. The native shell is configured via `${'$'}SHELL` (${shell.name}).
+                - **Command Tooling**: When executing terminal or shell commands, ALWAYS call the official `run_command` tool. NEVER call a tool named `bash`, `sh`, or `execute_command` directly because those names are not callable in this runtime.
+                - **Environment**: Subshells and scripts inherit `${'$'}SHELL` and `${'$'}BASH_ENV`.
+            """.trimIndent()
+            for (ruleName in listOf("system-android.md", "android-runtime.md")) {
+                val ruleFile = File(rulesDir, ruleName)
+                if (!ruleFile.exists() || ruleFile.length() == 0L) {
+                    ruleFile.writeText(ruleContent)
+                }
             }
         } catch (_: Exception) {}
     }

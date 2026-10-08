@@ -264,9 +264,11 @@ class BootstrapManagerTest {
         val manager = BootstrapManager(root)
         manager.initializeDirectories()
 
-        val ruleFile = File(manager.geminiDir, "rules/android-runtime.md")
-        assertTrue(ruleFile.exists())
-        val ruleContent = ruleFile.readText()
+        val ruleSystem = File(manager.geminiDir, "rules/system-android.md")
+        val ruleRuntime = File(manager.geminiDir, "rules/android-runtime.md")
+        assertTrue(ruleSystem.exists())
+        assertTrue(ruleRuntime.exists())
+        val ruleContent = ruleSystem.readText()
         assertTrue(ruleContent.contains("run_command"))
         assertTrue(ruleContent.contains("Android"))
     }
@@ -285,6 +287,7 @@ class BootstrapManagerTest {
                     "skills/gsd-plan-phase" -> arrayOf("SKILL.md")
                     "gsd-core/workflows" -> arrayOf("plan-phase.md")
                     "gsd-core/references" -> arrayOf("ui-brand.md")
+                    "rules" -> arrayOf("system-android.md")
                     else -> emptyArray()
                 }
             },
@@ -307,6 +310,9 @@ class BootstrapManagerTest {
         val workflowFile = File(manager.geminiDir, "antigravity/gsd-core/workflows/plan-phase.md")
         assertTrue(workflowFile.exists())
         assertEquals("test asset content for gsd-core/workflows/plan-phase.md", workflowFile.readText())
+
+        val extractedRule = File(manager.geminiDir, "rules/system-android.md")
+        assertTrue(extractedRule.exists())
     }
 }
 

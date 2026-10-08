@@ -79,4 +79,20 @@ class WorkspaceManagerTest {
         val shortcuts = manager.getDeviceShortcuts()
         assertNotNull(shortcuts)
     }
+
+    @Test
+    fun testResolveTreeDocIdToPath() {
+        val path1 = WorkspaceManager.resolveTreeDocIdToPath("primary:Download/MyCode")
+        assertNotNull(path1)
+        assertTrue(path1!!.endsWith("/Download/MyCode"))
+
+        val pathRoot = WorkspaceManager.resolveTreeDocIdToPath("primary:")
+        assertNotNull(pathRoot)
+
+        val pathSecondary = WorkspaceManager.resolveTreeDocIdToPath("0123-4567:Projects")
+        assertEquals("/storage/0123-4567/Projects", pathSecondary)
+
+        assertNull(WorkspaceManager.resolveTreeDocIdToPath(null))
+        assertNull(WorkspaceManager.resolveTreeDocIdToPath("invalid_format"))
+    }
 }

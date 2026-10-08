@@ -93,7 +93,8 @@ class WorkspaceManager(
     fun getDeviceShortcuts(): List<DeviceShortcut> {
         val shortcuts = mutableListOf<DeviceShortcut>()
         try {
-            val extStorage = File("/storage/emulated/0")
+            val rootPath = getPrimaryStoragePath()
+            val extStorage = File(rootPath)
             if (extStorage.exists()) {
                 shortcuts.add(DeviceShortcut("Storage Root", "storage", extStorage))
                 val downloads = File(extStorage, "Download")
@@ -104,15 +105,35 @@ class WorkspaceManager(
                 if (docs.exists()) {
                     shortcuts.add(DeviceShortcut("Documents", "document", docs))
                 }
-            } else {
-                val home = System.getProperty("user.home")
-                if (home != null) {
-                    val userHome = File(home)
-                    shortcuts.add(DeviceShortcut("Home", "home", userHome))
-                }
             }
         } catch (_: Exception) {}
         return shortcuts
+    }
+
+    companion object {
+        fun getPrimaryStoragePath(): String {
+            return try {
+                android.os.Environment.getExternalStorageDirectory().absolutePath
+            } catch (_: Throwable) {
+                "/storage/emulated/0"
+            }
+        }
+
+        fun resolveTreeDocIdToPath(docId: String?): String? {
+            if (docId == null) return null
+            val parts = docId.split(":")
+            if (parts.size >= 2) {
+                val type = parts[0]
+                val subPath = parts[1]
+                if ("primary".equals(type, ignoreCase = true)) {
+                    val root = getPrimaryStoragePath()
+                    return if (subPath.isBlank()) root else "$root/$subPath"
+                } else {
+                    return "/storage/$type/$subPath"
+                }
+            }
+            return null
+        }
     }
 
     fun getRecentConversations(limit: Int = 20): List<ConversationItem> {
