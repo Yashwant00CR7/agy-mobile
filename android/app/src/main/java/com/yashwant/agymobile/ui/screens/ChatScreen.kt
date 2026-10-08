@@ -54,10 +54,13 @@ fun ChatScreen(
     selectedModel: String = "Gemini 3.8 Flash (High)",
     onSelectModel: (String) -> Unit = {},
     onClearChat: () -> Unit = {},
+    hasStoragePermission: Boolean = true,
+    onRequestStoragePermission: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     var showModelPicker by remember { mutableStateOf(false) }
+    var showStorageBanner by remember { mutableStateOf(!hasStoragePermission) }
 
     // Auto-scroll on new messages
     LaunchedEffect(messages.size) {
@@ -272,6 +275,12 @@ fun ChatScreen(
             AuthBanner(
                 authState = authState,
                 onSignInClick = onOpenAuth
+            )
+
+            StorageBanner(
+                visible = !hasStoragePermission && showStorageBanner,
+                onGrantClick = onRequestStoragePermission,
+                onDismiss = { showStorageBanner = false }
             )
 
             if (messages.isEmpty()) {

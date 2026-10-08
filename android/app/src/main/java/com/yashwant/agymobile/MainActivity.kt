@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
                 val workspaceDir = File(workspaceInfo.currentPath)
                 val workspaceName = workspaceDir.name.ifBlank { "Workspace" }
+                val hasStorage = hasStoragePermission()
 
                 ChatScreen(
                     messages = messages,
@@ -94,7 +95,9 @@ class MainActivity : ComponentActivity() {
                     onOpenAuth = { viewModel.openAuthSheet() },
                     selectedModel = selectedModel,
                     onSelectModel = { viewModel.selectModel(it) },
-                    onClearChat = { viewModel.clearChat() }
+                    onClearChat = { viewModel.clearChat() },
+                    hasStoragePermission = hasStorage,
+                    onRequestStoragePermission = { requestStoragePermission() }
                 )
 
                 if (showAuthSheet) {
@@ -169,6 +172,40 @@ class MainActivity : ComponentActivity() {
             }
             recognizer.startListening(intent)
             viewModel.setVoiceRecording(true)
+        }
+    }
+
+    fun hasStoragePermission(): Boolean {
+        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
+        } else {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    }
+
+    fun requestStoragePermission() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                    data = android.net.Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
+            } catch (_: Exception) {
+                val fallbackIntent = Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                startActivity(fallbackIntent)
+            }
+        } else {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this,
+                arrayOf(
+                    android.Manifest.permission.READ_EXTERNAL_STORAGE,
+                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ),
+                1001
+            )
         }
     }
 
