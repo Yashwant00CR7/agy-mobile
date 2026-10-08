@@ -86,6 +86,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     init {
         bootstrapManager.initializeDirectories()
         bootstrapManager.setupAgyFromNativeLib()
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            bootstrapManager.extractAssetsFromContext(application)
+        }
     }
 
     fun onPromptChange(newText: String) {

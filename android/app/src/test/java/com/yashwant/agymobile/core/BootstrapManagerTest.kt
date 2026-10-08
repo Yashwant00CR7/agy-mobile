@@ -212,5 +212,36 @@ class BootstrapManagerTest {
         val bashLink = File(manager.binDir, "bash")
         assertTrue(bashLink.exists())
     }
+
+    @Test
+    fun testExtractBundledAssets() {
+        val root = tempFolder.newFolder("app_files_assets")
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
+
+        val extracted = manager.extractBundledAssets(
+            assetList = { path ->
+                when (path) {
+                    "skills" -> arrayOf("gsd-plan-phase")
+                    "skills/gsd-plan-phase" -> arrayOf("SKILL.md")
+                    "gsd-core/workflows" -> arrayOf("plan-phase.md")
+                    "gsd-core/references" -> arrayOf("ui-brand.md")
+                    else -> emptyArray()
+                }
+            },
+            assetOpener = { path ->
+                ByteArrayInputStream("test asset content for $path".toByteArray())
+            }
+        )
+
+        assertTrue(extracted > 0)
+        val skillFile = File(manager.geminiDir, "config/skills/gsd-plan-phase/SKILL.md")
+        assertTrue(skillFile.exists())
+        assertEquals("test asset content for skills/gsd-plan-phase/SKILL.md", skillFile.readText())
+
+        val workflowFile = File(manager.geminiDir, "antigravity/gsd-core/workflows/plan-phase.md")
+        assertTrue(workflowFile.exists())
+        assertEquals("test asset content for gsd-core/workflows/plan-phase.md", workflowFile.readText())
+    }
 }
 

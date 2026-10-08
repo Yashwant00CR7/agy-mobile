@@ -59,6 +59,66 @@ class BootstrapManager(
         return targetFile
     }
 
+    fun extractBundledAssets(
+        assetList: (String) -> Array<String>?,
+        assetOpener: (String) -> InputStream?
+    ): Int {
+        var count = 0
+        try {
+            // 1. Extract skills
+            val skills = assetList("skills") ?: emptyArray()
+            val targetSkillsDir = File(geminiDir, "config/skills")
+            targetSkillsDir.mkdirs()
+
+            for (skillName in skills) {
+                val skillFiles = assetList("skills/$skillName") ?: emptyArray()
+                val skillDest = File(targetSkillsDir, skillName)
+                skillDest.mkdirs()
+                for (fileName in skillFiles) {
+                    val stream = assetOpener("skills/$skillName/$fileName") ?: continue
+                    val destFile = File(skillDest, fileName)
+                    if (!destFile.exists() || destFile.length() == 0L) {
+                        destFile.outputStream().use { out -> stream.copyTo(out) }
+                        count++
+                    } else {
+                        stream.close()
+                    }
+                }
+            }
+
+            // 2. Extract gsd-core workflows and references
+            for (sub in listOf("workflows", "references")) {
+                val files = assetList("gsd-core/$sub") ?: emptyArray()
+                val destSubDir = File(geminiDir, "antigravity/gsd-core/$sub")
+                destSubDir.mkdirs()
+                for (fileName in files) {
+                    val stream = assetOpener("gsd-core/$sub/$fileName") ?: continue
+                    val destFile = File(destSubDir, fileName)
+                    if (!destFile.exists() || destFile.length() == 0L) {
+                        destFile.outputStream().use { out -> stream.copyTo(out) }
+                        count++
+                    } else {
+                        stream.close()
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+        return count
+    }
+
+    fun extractAssetsFromContext(context: android.content.Context): Int {
+        val assets = context.assets
+        return extractBundledAssets(
+            assetList = { path ->
+                try { assets.list(path) } catch (_: Exception) { null }
+            },
+            assetOpener = { path ->
+                try { assets.open(path) } catch (_: Exception) { null }
+            }
+        )
+    }
+
+
     fun setupAgyFromNativeLib(): File? {
         initializeDirectories()
 
