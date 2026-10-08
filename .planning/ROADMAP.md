@@ -30,7 +30,7 @@
 *Goal:* Transform agy-mobile into a true mobile AI assistant that operates directly on device storage (`/storage/emulated/0`), remembers active device folders across app restarts, provides an interactive in-app folder picker modal, and supports top bar and drawer switching.
 
 #### Phases
-- [ ] **Phase 07: Mobile AI Device Storage & Interactive Folder Navigator**
+- [x] **Phase 07: Mobile AI Device Storage & Interactive Folder Navigator** (Completed)
   - **Goal:** Build `DeviceFolderPickerModal`, enable persistent workspace saving and startup restoration in `WorkspaceManager` and `AgyViewModel`, add top bar workspace switching pill in `ChatGptTopBar`, and verify full device file interactions.
   - **Requirements Addressed:** REQ-32, REQ-33, REQ-34, REQ-35, REQ-36.
   - **Success Criteria:** User can browse and select any device folder from in-app modal, chosen folder persists across restarts, top bar and drawer allow fast switching, tests pass, and APK builds.
