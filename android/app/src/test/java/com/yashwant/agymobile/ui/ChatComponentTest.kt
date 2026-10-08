@@ -1,9 +1,13 @@
 package com.yashwant.agymobile.ui
 
+import com.yashwant.agymobile.core.ConversationItem
 import com.yashwant.agymobile.model.ChatMessage
 import com.yashwant.agymobile.model.MessageRole
+import com.yashwant.agymobile.ui.components.QuickActions
+import com.yashwant.agymobile.ui.theme.*
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 class ChatComponentTest {
 
@@ -32,5 +36,33 @@ class ChatComponentTest {
         )
         assertEquals(MessageRole.APPROVAL, approvalMsg.role)
         assertEquals("call_abc", approvalMsg.toolCallId)
+    }
+
+    @Test
+    fun testQuickActionsPresets() {
+        assertTrue(QuickActions.isNotEmpty())
+        assertEquals(4, QuickActions.size)
+        assertTrue(QuickActions.any { it.title == "Git Status" })
+        assertTrue(QuickActions.any { it.title == "Review Diffs" })
+    }
+
+    @Test
+    fun testChatGptIcons() {
+        assertNotNull(AgyIcons.NewChat)
+        assertNotNull(AgyIcons.ArrowUp)
+        assertNotNull(AgyIcons.Plus)
+        assertNotNull(AgyIcons.Sparkle)
+    }
+
+    @Test
+    fun testAntigravityDarkTokens() {
+        assertNotNull(AntigravityDarkBg)
+        assertNotNull(AntigravitySurface)
+        assertNotNull(AntigravitySurfaceElevated)
+        assertNotNull(UserBubbleDark)
+        assertNotNull(SendButtonActive)
+        assertEquals(0x13, (AntigravityDarkBg.red * 255).toInt())
+        assertEquals(0x13, (AntigravityDarkBg.green * 255).toInt())
+        assertEquals(0x14, (AntigravityDarkBg.blue * 255).toInt())
     }
 }

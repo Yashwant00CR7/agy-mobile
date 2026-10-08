@@ -1,7 +1,6 @@
 package com.yashwant.agymobile.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Difference
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,26 +29,25 @@ fun DiffCard(
 ) {
     val horizontalScroll = rememberScrollState()
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ObsidianBlack)
-            .border(1.dp, ObsidianBorder, RoundedCornerShape(12.dp))
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = AntigravityDarkBg,
+        shape = RoundedCornerShape(12.dp)
     ) {
         Column {
+            // Header
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(ObsidianElevated)
+                    .background(AntigravitySurface)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Difference,
                     contentDescription = "Diff",
-                    tint = ElectricCyan,
+                    tint = AntigravityCyan,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
@@ -60,35 +59,38 @@ fun DiffCard(
                 )
             }
 
+            // Diff Body
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(8.dp)
                     .horizontalScroll(horizontalScroll)
+                    .padding(10.dp)
             ) {
                 val lines = diffText.lines()
                 lines.forEach { line ->
-                    val (bgColor, textColor) = when {
-                        line.startsWith("+") -> Pair(Color(0x1A10B981), EmeraldSuccess)
-                        line.startsWith("-") -> Pair(Color(0x1AEF4444), CrimsonDanger)
-                        line.startsWith("@@") -> Pair(Color(0x1A8B5CF6), AntigravityViolet)
-                        else -> Pair(Color.Transparent, TextSecondary)
+                    val textColor = when {
+                        line.startsWith("+") -> EmeraldSuccess
+                        line.startsWith("-") -> CrimsonDanger
+                        line.startsWith("@@") -> AntigravityCyan
+                        else -> TextSecondary
+                    }
+                    val lineBg = when {
+                        line.startsWith("+") -> Color(0x1510B981)
+                        line.startsWith("-") -> Color(0x15EF4444)
+                        else -> Color.Transparent
                     }
 
-                    Box(
+                    Text(
+                        text = line,
+                        color = textColor,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(bgColor)
+                            .background(lineBg)
                             .padding(horizontal = 4.dp, vertical = 1.dp)
-                    ) {
-                        Text(
-                            text = line,
-                            color = textColor,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
-                            lineHeight = 15.sp
-                        )
-                    }
+                    )
                 }
             }
         }

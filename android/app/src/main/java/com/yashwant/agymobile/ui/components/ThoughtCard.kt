@@ -1,16 +1,16 @@
 package com.yashwant.agymobile.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,64 +30,59 @@ fun ThoughtCard(
 ) {
     var isExpanded by remember { mutableStateOf(false) }
 
-    Box(
+    Column(
         modifier = modifier
-            .fillMaxWidth(0.92f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(ObsidianSurface)
-            .border(1.dp, VioletGlow, RoundedCornerShape(12.dp))
-            .clickable { isExpanded = !isExpanded }
             .animateContentSize()
-            .padding(12.dp)
+            .padding(vertical = 2.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Sleek Collapsible Pill Header
+        Surface(
+            onClick = { isExpanded = !isExpanded },
+            color = AntigravitySurface,
+            shape = RoundedCornerShape(16.dp)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = AgyIcons.TerminalSpark,
-                        contentDescription = "Thinking",
-                        tint = AntigravityViolet,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "THOUGHT STREAM",
-                        color = AntigravityViolet,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 0.8.sp
-                    )
-                }
-
+                Icon(
+                    imageVector = AgyIcons.Sparkle,
+                    contentDescription = null,
+                    tint = AntigravityViolet,
+                    modifier = Modifier.size(13.dp)
+                )
+                Text(
+                    text = if (isExpanded) "Hide thoughts" else "Thought process",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
                 Icon(
                     imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Toggle",
+                    contentDescription = null,
                     tint = TextMuted,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
+        }
 
-            if (isExpanded) {
+        // Expanded Thought Content Box
+        if (isExpanded) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AntigravitySurface)
+                    .padding(12.dp)
+            ) {
                 Text(
                     text = thoughtText,
                     color = TextSecondary,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    lineHeight = 17.sp
-                )
-            } else {
-                Text(
-                    text = thoughtText.take(120).replace("\n", " ") + if (thoughtText.length > 120) "..." else "",
-                    color = TextMuted,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    maxLines = 2
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    fontStyle = FontStyle.Italic
                 )
             }
         }

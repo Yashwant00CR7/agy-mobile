@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,20 +12,23 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.yashwant.agymobile.model.AuthState
 import com.yashwant.agymobile.model.ChatMessage
 import com.yashwant.agymobile.model.MessageRole
 import com.yashwant.agymobile.ui.components.*
@@ -49,9 +51,9 @@ fun ChatScreen(
     onDeny: (String) -> Unit,
     onVoiceClick: () -> Unit,
     isVoiceRecording: Boolean,
-    authState: com.yashwant.agymobile.model.AuthState = com.yashwant.agymobile.model.AuthState(isAuthenticated = true),
+    authState: AuthState = AuthState(isAuthenticated = true),
     onOpenAuth: () -> Unit = {},
-    selectedModel: String = "Gemini 3.8 Flash (High)",
+    selectedModel: String = "Gemini 2.5 Flash",
     onSelectModel: (String) -> Unit = {},
     onClearChat: () -> Unit = {},
     hasStoragePermission: Boolean = true,
@@ -61,6 +63,8 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     var showModelPicker by remember { mutableStateOf(false) }
     var showStorageBanner by remember { mutableStateOf(!hasStoragePermission) }
+    val clipboardManager = LocalClipboardManager.current
+    val haptic = LocalHapticFeedback.current
 
     // Auto-scroll on new messages
     LaunchedEffect(messages.size) {
@@ -71,187 +75,17 @@ fun ChatScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        containerColor = ObsidianBlack,
+        containerColor = AntigravityDarkBg,
         topBar = {
-            // High-Craft Cyber Header
-            Surface(
-                color = ObsidianSurface,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    ) {
-                        // Left: Menu + Brand Logo + Title
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            IconButton(
-                                onClick = onOpenMenu,
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(ObsidianElevated)
-                                    .border(1.dp, HairlineBorder, RoundedCornerShape(10.dp))
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = "Menu",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-
-                            // Antigravity Brand Mark
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(ObsidianBlack)
-                                    .border(1.dp, ElectricCyan.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = AgyIcons.Logo,
-                                    contentDescription = "Antigravity",
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            Column {
-                                Text(
-                                    text = "ANTIGRAVITY",
-                                    color = TextPrimary,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    letterSpacing = 1.2.sp
-                                )
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(if (gitBranch != null) ElectricCyan else EmeraldSuccess)
-                                    )
-                                    Text(
-                                        text = gitBranch?.let { "🌿 $it" } ?: workspaceName.ifBlank { "workspace" },
-                                        color = TextSecondary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-
-                        // Right: Model Selector Pill + Mode Toggle + Auth
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Model Selector Pill (Interactive)
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(ObsidianElevated)
-                                    .border(1.dp, ElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-                                    .clickable { showModelPicker = true }
-                                    .padding(horizontal = 9.dp, vertical = 5.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = AgyIcons.ModelChip,
-                                        contentDescription = null,
-                                        tint = ElectricCyan,
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                    Text(
-                                        text = selectedModel.substringBefore(" (").replace("Gemini ", ""),
-                                        color = ElectricCyan,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Icon(
-                                        imageVector = AgyIcons.ChevronDown,
-                                        contentDescription = "Select",
-                                        tint = ElectricCyan,
-                                        modifier = Modifier.size(10.dp)
-                                    )
-                                }
-                            }
-
-                            // Autonomous Pill Toggle
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isAutonomous) Color(0x2010B981) else Color(0x20F59E0B))
-                                    .border(1.dp, if (isAutonomous) EmeraldSuccess else AmberWarning, RoundedCornerShape(16.dp))
-                                    .clickable { onToggleAutonomous() }
-                                    .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isAutonomous) EmeraldSuccess else AmberWarning)
-                                    )
-                                    Text(
-                                        text = if (isAutonomous) "Auto" else "Plan",
-                                        color = if (isAutonomous) EmeraldSuccess else AmberWarning,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-
-                            // Clear Chat Icon if conversation is active
-                            if (messages.isNotEmpty()) {
-                                IconButton(
-                                    onClick = onClearChat,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DeleteOutline,
-                                        contentDescription = "Clear Chat",
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Bottom Hairline Border
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(HairlineBorder)
-                    )
-                }
-            }
+            ChatGptTopBar(
+                selectedModel = selectedModel,
+                onOpenDrawer = onOpenMenu,
+                onOpenModelPicker = { showModelPicker = true },
+                onNewChat = onClearChat
+            )
         },
         bottomBar = {
-            InputBar(
+            ChatGptComposer(
                 promptText = promptText,
                 onPromptChange = onPromptChange,
                 isRunning = isRunning,
@@ -259,8 +93,8 @@ fun ChatScreen(
                 onCancel = onCancel,
                 onVoiceClick = onVoiceClick,
                 isVoiceRecording = isVoiceRecording,
-                onChipClick = { chip ->
-                    onPromptChange(chip)
+                onQuickAction = { action ->
+                    onPromptChange(action)
                     onSend()
                 },
                 modifier = Modifier.navigationBarsPadding()
@@ -272,11 +106,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AuthBanner(
-                authState = authState,
-                onSignInClick = onOpenAuth
-            )
-
+            // Storage Access Banner (if needed)
             StorageBanner(
                 visible = !hasStoragePermission && showStorageBanner,
                 onGrantClick = onRequestStoragePermission,
@@ -284,7 +114,7 @@ fun ChatScreen(
             )
 
             if (messages.isEmpty()) {
-                // Empty state: High-craft Welcome Hub
+                // Empty state: Minimal ChatGPT-style Welcome screen
                 WelcomeHero(
                     authState = authState,
                     selectedModel = selectedModel,
@@ -295,15 +125,14 @@ fun ChatScreen(
                         onPromptChange(prompt)
                         onSend()
                     },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 12.dp)
+                    modifier = Modifier.fillMaxSize()
                 )
             } else {
+                // Fluid Chat Canvas
                 LazyColumn(
                     state = listState,
-                    contentPadding = PaddingValues(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
@@ -311,108 +140,114 @@ fun ChatScreen(
                     items(messages, key = { it.id }) { msg ->
                         when (msg.role) {
                             MessageRole.SYSTEM -> {
-                                // Clean, unobtrusive timeline event badge
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(ObsidianElevated)
-                                            .border(1.dp, HairlineBorder, RoundedCornerShape(12.dp))
-                                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                                    Surface(
+                                        color = AntigravitySurface,
+                                        shape = RoundedCornerShape(12.dp)
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(ElectricCyan)
-                                        )
                                         Text(
                                             text = msg.content,
                                             color = TextSecondary,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                         )
                                     }
                                 }
                             }
 
                             MessageRole.USER -> {
+                                // Right-aligned clean bubble
                                 Box(
                                     modifier = Modifier.fillMaxWidth(),
                                     contentAlignment = Alignment.CenterEnd
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.85f)
-                                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp))
-                                            .background(
-                                                Brush.linearGradient(
-                                                    listOf(Color(0xFF2E1065), Color(0xFF1E1B4B))
-                                                )
-                                            )
-                                            .border(
-                                                1.dp,
-                                                AntigravityViolet.copy(alpha = 0.5f),
-                                                RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
-                                            )
-                                            .padding(14.dp)
+                                    Surface(
+                                        color = UserBubbleDark,
+                                        shape = RoundedCornerShape(18.dp),
+                                        modifier = Modifier.widthIn(max = 310.dp)
                                     ) {
                                         Text(
                                             text = msg.content,
-                                            color = Color(0xFFF8FAFC),
-                                            fontSize = 14.sp,
-                                            lineHeight = 21.sp,
-                                            fontWeight = FontWeight.Normal
+                                            color = UserBubbleText,
+                                            fontSize = 15.sp,
+                                            lineHeight = 22.sp,
+                                            fontWeight = FontWeight.Normal,
+                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                                         )
                                     }
                                 }
                             }
 
                             MessageRole.ASSISTANT -> {
+                                // Fluid full-width message directly on canvas
                                 Box(
                                     modifier = Modifier.fillMaxWidth(),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.94f)
-                                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
-                                            .background(ObsidianSurface)
-                                            .border(1.dp, ObsidianBorder, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
-                                            .padding(14.dp)
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        // Header Row: Small Logo + Antigravity Name
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(22.dp)
+                                                    .clip(CircleShape)
+                                                    .background(AntigravitySurfaceElevated),
+                                                contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     imageVector = AgyIcons.Logo,
                                                     contentDescription = null,
                                                     tint = Color.Unspecified,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Text(
-                                                    text = "ANTIGRAVITY",
-                                                    color = ElectricCyan,
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    letterSpacing = 1.sp
+                                                    modifier = Modifier.size(13.dp)
                                                 )
                                             }
                                             Text(
-                                                text = msg.content,
+                                                text = "Antigravity",
                                                 color = TextPrimary,
-                                                fontSize = 14.sp,
-                                                lineHeight = 21.sp
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold
                                             )
+                                        }
+
+                                        // Assistant Text Body
+                                        Text(
+                                            text = msg.content,
+                                            color = AssistantText,
+                                            fontSize = 15.sp,
+                                            lineHeight = 23.sp
+                                        )
+
+                                        // Subtle Copy Action Icon
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(
+                                                onClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    clipboardManager.setText(AnnotatedString(msg.content))
+                                                },
+                                                modifier = Modifier.size(26.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ContentCopy,
+                                                    contentDescription = "Copy message",
+                                                    tint = TextMuted,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -457,16 +292,14 @@ fun ChatScreen(
                                         msg.content.contains("model not recognized", ignoreCase = true)
 
                                 if (isAuthError) {
-                                    // Interactive Auth Recovery Card
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .border(1.dp, AmberWarning.copy(alpha = 0.5f), RoundedCornerShape(14.dp)),
-                                        colors = CardDefaults.cardColors(containerColor = ObsidianSurface)
+                                    Surface(
+                                        color = AntigravitySurface,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -476,47 +309,41 @@ fun ChatScreen(
                                                     imageVector = AgyIcons.CyberKey,
                                                     contentDescription = null,
                                                     tint = AmberWarning,
-                                                    modifier = Modifier.size(18.dp)
+                                                    modifier = Modifier.size(16.dp)
                                                 )
                                                 Text(
                                                     text = "Authentication Required",
                                                     color = TextPrimary,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold
                                                 )
                                             }
-
                                             Text(
-                                                text = "libagy needs active credentials or a free Gemini API key to execute tools.",
+                                                text = "Sign in or provide an API key to execute tools.",
                                                 color = TextSecondary,
-                                                fontSize = 12.sp,
-                                                lineHeight = 16.sp
+                                                fontSize = 12.sp
                                             )
-
                                             Button(
                                                 onClick = onOpenAuth,
                                                 colors = ButtonDefaults.buttonColors(
-                                                    containerColor = ElectricCyan,
-                                                    contentColor = ObsidianBlack
+                                                    containerColor = AntigravityBlue,
+                                                    contentColor = Color.White
                                                 ),
-                                                shape = RoundedCornerShape(8.dp),
-                                                modifier = Modifier.fillMaxWidth()
+                                                shape = RoundedCornerShape(8.dp)
                                             ) {
-                                                Text(text = "Sign In / Enter Key", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                                Text("Sign In / Key", fontSize = 12.sp)
                                             }
                                         }
                                     }
                                 } else if (isModelError) {
-                                    // Interactive Model & Key Configuration Card
-                                    Card(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .border(1.dp, ElectricCyan.copy(alpha = 0.6f), RoundedCornerShape(14.dp)),
-                                        colors = CardDefaults.cardColors(containerColor = ObsidianSurface)
+                                    Surface(
+                                        color = AntigravitySurface,
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(
-                                            modifier = Modifier.padding(16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            modifier = Modifier.padding(14.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -525,67 +352,44 @@ fun ChatScreen(
                                                 Icon(
                                                     imageVector = AgyIcons.ModelChip,
                                                     contentDescription = null,
-                                                    tint = ElectricCyan,
-                                                    modifier = Modifier.size(18.dp)
+                                                    tint = AntigravityCyan,
+                                                    modifier = Modifier.size(16.dp)
                                                 )
                                                 Text(
-                                                    text = "Agent Model & Key Configuration",
+                                                    text = "Model Configuration",
                                                     color = TextPrimary,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.Bold
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold
                                                 )
                                             }
-
                                             Text(
-                                                text = "Active Model: $selectedModel. Select a model or activate a free Gemini API key from Google AI Studio for instant native execution.",
+                                                text = "Active Model: $selectedModel. Select another model or provide a key.",
                                                 color = TextSecondary,
-                                                fontSize = 12.sp,
-                                                lineHeight = 16.sp
+                                                fontSize = 12.sp
                                             )
-
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            Button(
+                                                onClick = { showModelPicker = true },
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = AntigravityBlue,
+                                                    contentColor = Color.White
+                                                ),
+                                                shape = RoundedCornerShape(8.dp)
                                             ) {
-                                                Button(
-                                                    onClick = { showModelPicker = true },
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = ElectricCyan,
-                                                        contentColor = ObsidianBlack
-                                                    ),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    modifier = Modifier.weight(1f)
-                                                ) {
-                                                    Text(text = "Choose Model", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                                                }
-
-                                                OutlinedButton(
-                                                    onClick = onOpenAuth,
-                                                    colors = ButtonDefaults.outlinedButtonColors(
-                                                        contentColor = ElectricCyan
-                                                    ),
-                                                    border = androidx.compose.foundation.BorderStroke(1.dp, ElectricCyan.copy(alpha = 0.5f)),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    modifier = Modifier.weight(1f)
-                                                ) {
-                                                    Text(text = "Enter API Key", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                                                }
+                                                Text("Choose Model", fontSize = 12.sp)
                                             }
                                         }
                                     }
                                 } else {
-                                    // Cleaned Error Diagnostic Card (no raw JSON dump)
                                     var showDiagnostics by remember { mutableStateOf(false) }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(Color(0x18EF4444))
-                                            .border(1.dp, CrimsonDanger.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                                            .padding(14.dp)
+                                    Surface(
+                                        color = Color(0x18EF4444),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Column(
+                                            modifier = Modifier.padding(12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -606,7 +410,7 @@ fun ChatScreen(
 
                                             if (msg.content.contains("AGY_ERROR:")) {
                                                 Text(
-                                                    text = if (showDiagnostics) "Hide Details" else "View Diagnostics",
+                                                    text = if (showDiagnostics) "Hide Details" else "View Details",
                                                     color = TextMuted,
                                                     fontSize = 11.sp,
                                                     modifier = Modifier.clickable { showDiagnostics = !showDiagnostics }
@@ -626,8 +430,8 @@ fun ChatScreen(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
                                                             .clip(RoundedCornerShape(8.dp))
-                                                            .background(ObsidianBlack)
-                                                            .padding(10.dp)
+                                                            .background(AntigravityDarkBg)
+                                                            .padding(8.dp)
                                                     )
                                                 }
                                             }
