@@ -1,8 +1,9 @@
-# Requirements: Mobile Bash Runtime, Storage Access & GSD Bundle
+# Requirements: ChatGPT-Standard Mobile UI & UX Overhaul
 
-- [x] **REQ-01**: Bundle a statically-linked ARM64 `bash` binary as `libbash.so` under `android/app/src/main/jniLibs/arm64-v8a/` and ensure it is packaged into the APK native library directory.
-- [x] **REQ-02**: Update `BootstrapManager.kt` to resolve the native shell executable (`libbash.so` or `/system/bin/sh`), export `SHELL` in the environment, configure `PATH`, and create local symlinks (`bin/bash`, `bin/sh`).
-- [x] **REQ-03**: Configure `AndroidManifest.xml` with `MANAGE_EXTERNAL_STORAGE` and `READ_EXTERNAL_STORAGE` permissions, and implement a Just-in-Time All Files Access permission dialog in the UI linking to Android system settings.
-- [x] **REQ-04**: Bundle the complete set of GSD Core skills into `android/app/src/main/assets/skills/` and extend `BootstrapManager.kt` to extract them to `~/.gemini/config/skills/` on app startup.
-- [x] **REQ-05**: Ensure `/gsd-*` commands and bash execution are handled cleanly by `AgyProcessEngine` and the chat interface without UI clutter.
-- [x] **REQ-06**: Verify all unit tests pass with `./gradlew test` and assemble a production debug APK with `./gradlew assembleDebug`.
+- [x] **REQ-07**: Update color palette and theme to authentic Antigravity Dark (`#131314` canvas, `#1E1F22` surfaces, `#2B2D31` bubbles, refined blue/violet accents), removing all neon cyberpunk borders and matrix badges.
+- [x] **REQ-08**: Implement full ChatGPT-style left sliding `ModalNavigationDrawer` containing "+ New Chat" button, grouped conversation history (Today, Yesterday, Older), workspace switcher, and user account status bar.
+- [x] **REQ-09**: Implement ChatGPT-style top bar with hamburger menu icon (opens drawer), centered interactive model dropdown pill (`Gemini 2.5 Flash ▾`), and new chat button.
+- [x] **REQ-10**: Overhaul chat message layout to fluid ChatGPT canvas: right-aligned clean user bubbles, seamless full-width assistant messages, and collapsible accordion pills for thoughts and tool calls.
+- [x] **REQ-11**: Redesign bottom composer as a floating capsule pill (`RoundedCornerShape(26.dp)`) with `+` action button, auto-expanding text input, and circular send/stop button that seamlessly switches to mic when empty.
+- [x] **REQ-12**: Redesign empty state (welcome screen) to a clean, minimal ChatGPT-style layout with centered Antigravity logo, warm greeting, and clean suggestion prompt pills.
+- [x] **REQ-13**: Maintain full integration with existing `AgyViewModel`, `AgyAgentService`, speech recognition, file diffs, tool approval flows, and storage permission checks; pass unit tests and `./gradlew assembleDebug`.

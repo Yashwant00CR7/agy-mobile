@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -231,7 +233,7 @@ fun ChatGptDrawer(
                                 .clickable { onSelectDirectory(parent) }
                                 .padding(horizontal = 8.dp, vertical = 6.dp)
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
                             Text(".. (Parent Folder)", color = TextSecondary, fontSize = 12.sp)
                         }
                     }
@@ -366,7 +368,7 @@ fun ChatGptDrawer(
                     if (authState.isAuthenticated) {
                         IconButton(onClick = onSignOut, modifier = Modifier.size(30.dp)) {
                             Icon(
-                                imageVector = Icons.Default.ExitToApp,
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                                 contentDescription = "Sign Out",
                                 tint = TextSecondary,
                                 modifier = Modifier.size(18.dp)

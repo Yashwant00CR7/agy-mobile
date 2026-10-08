@@ -1,22 +1,18 @@
-# GSD Project State: agy-mobile
+# GSD Project State
 
-**Active Milestone:** v1.1.0 - Mobile Bash & GSD Engine
-**Current Phase:** Phase 1 - Mobile Bash Runtime, Storage Access & GSD Bundle
+**Active Milestone:** v1.2.0
+**Current Phase:** Phase 02 - ChatGPT-Standard Mobile UI & UX Architecture Overhaul
 **Status:** Complete
-**Last Updated:** 2026-10-08 12:46:00
+**Last Updated:** 2026-10-08 14:47:00
 
-## Active Decisions & Constraints (from Grilling)
-- **Native Bash Shell:** Bundle precompiled static ARM64 bash binary as `libbash.so` in `android/app/src/main/jniLibs/arm64-v8a/` so it is extracted to `nativeLibraryDir` (bypassing Android 10+ W^X SELinux restrictions).
-- **Environment Exports:** `BootstrapManager.getEnvironmentVariables()` exports `SHELL` pointing to `libbash.so` with fallback to `/system/bin/sh`, and `PATH` including `nativeLibraryDir`, `binDir`, and `/system/bin`.
-- **All Files Access:** Add `MANAGE_EXTERNAL_STORAGE` and `READ_EXTERNAL_STORAGE` permissions with Just-in-Time grant dialog in `ChatScreen`/`MainActivity` so Antigravity can search `/sdcard/Download`, `/sdcard/Documents`.
-- **Minimal UI:** Keep chat interface clean without extra header clutter or pill strips; GSD workflows are invoked cleanly via slash commands (`/gsd-*`).
-- **Full GSD Suite:** Package full GSD skills into APK assets and auto-extract to `~/.gemini/config/skills/` and `~/.gemini/antigravity/` so `libagy.so` natively executes GSD workflows.
-- **Git Identity:** Repository-local personal identity (`10a19yashwant@gmail.com` / `Yashwant00CR7`).
+## Active Decisions & Constraints
+- Full ChatGPT mobile UX flow delivered: left sliding `ModalNavigationDrawer`, centered model dropdown pill in top bar, fluid message canvas, and floating capsule composer with circular send/stop button.
+- Authentic Antigravity dark aesthetic applied: `#131314` canvas, `#1E1F22` surfaces, `#2B2D31` bubbles, delicate `#4E80EE` accents; zero neon border clutter or diagnostic matrix boxes.
+- Collapsible accordion pills for reasoning thoughts and tool actions.
+- All core engine connections, service bindings, unit tests, and debug APK packaging verified.
 
 ## Current Position
-- Phase: 01-mobile-bash-and-gsd
+- Phase: 02-chatgpt-ui-overhaul
 - Total Plans: 1
 - Completed Plans: 1
-- Status: Complete and Verified
-- Artifacts: android/agy-mobile-debug.apk (74MB) ready for installation
-
+- Next Action: Ready for User Testing & Deployment

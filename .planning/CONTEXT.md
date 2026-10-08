@@ -1,27 +1,51 @@
-# Phase Context: Mobile Bash Runtime, Storage Access & GSD Bundle
+# Phase Context: ChatGPT-Standard Mobile UI & UX Overhaul
 
 ## Problem & User Intent
-When running Antigravity on mobile (`agy-mobile`), the agent fails when attempting shell searches across storage because Android lacks `bash` in `/system/bin` and restricts app storage by default. Furthermore, the user wants the full GSD Core framework integrated into the mobile app to empower spec-driven development on their phone.
+The previous user interface used an aggressive cyberpunk/neon obsidian aesthetic with heavy glowing borders, diagnostic status matrix cards, and cluttered bottom sheets. The user explicitly disliked this look and requested a complete overhaul on par with ChatGPT mobile's user experience, fluidity, and UX flows, combined with authentic Antigravity design aesthetics.
 
 ## Mental Model & Core Abstractions
-- **Native Library Execution Vector:** On Android 10+ (API 29+), binaries in standard app directories cannot be executed (`error=13 Permission denied`). However, binaries inside `nativeLibraryDir` (packaged as `lib*.so` in `jniLibs/arm64-v8a/` with `useLegacyPackaging = true`) are granted executable permissions and `apk_data_file` SELinux context.
-- **Shell Resolution Protocol:** `BootstrapManager` resolves the shell executable:
-  1. Primary: `libbash.so` inside `nativeLibraryDir`.
-  2. Fallback: `/system/bin/sh` (POSIX compliant mksh/toybox).
-  It exports `SHELL` and `PATH` so `libagy.so` and child processes execute without "bash not found" errors.
-- **Device File Access:** `MANAGE_EXTERNAL_STORAGE` unlocks `/sdcard`, allowing shell commands like `find /sdcard/Download -iname "*<query>*"` to locate files across the phone.
-- **GSD Plugin Engine:** Pre-packaged GSD skills inside Android assets are extracted to the user's `~/.gemini/config/skills/` on device startup. The user triggers them via `/gsd-*` slash commands in the minimal chat UI.
+1. **Clean, Distraction-Free Canvas:**
+   - Dark, sophisticated slate/graphite neutral tones (`#131314` background, `#212124` elevated surfaces, `#2D3139` user bubbles) reminiscent of Google Antigravity & modern ChatGPT mobile dark mode.
+   - Refined Antigravity accents (delicate blue-violet `#4E80EE` / `#7C3AED` and cyan accents for active icons and states; no gaudy neon borders or matrix boxes).
+
+2. **Navigation & Flow:**
+   - **Top Navigation Bar:**
+     - Left: Hamburger menu icon that slides open the navigation drawer.
+     - Center: Centered model dropdown pill (`Gemini 2.5 Flash ▾`) providing seamless model selection via bottom sheet.
+     - Right: New Chat icon (`SquarePen` / Edit icon) allowing instant conversation reset.
+   - **Left Navigation Drawer (`ModalNavigationDrawer`):**
+     - Full-height drawer sliding from left edge.
+     - "+ New Chat" primary button at top.
+     - Conversation history list chronologically grouped (Today, Yesterday, Previous 7 Days, Older).
+     - Workspace / Project section with quick switcher and project creation.
+     - Account / Auth status row at the bottom with sign in / sign out and settings access.
+
+3. **Message Presentation & Fluid Stream:**
+   - **User Message:** Crisp right-aligned rounded bubble (`RoundedCornerShape(18.dp)`) in elevated slate (`#2D3139`), white clean text.
+   - **Assistant Message:** Directly rendered on the canvas (no heavy bounding box), clean typography, crisp markdown formatting, subtle Antigravity avatar at the start.
+   - **Collapsible Agent Activities:** Sleek accordion pills for internal agent thoughts (`Thought for 3s ▾`) and tool runs (`Ran bash: git status ▾`) that keep the transcript readable and expand on demand.
+   - **Approval & Diff Cards:** Modern, compact cards with native rounded borders and high-contrast actions.
+
+4. **Floating Capsule Composer:**
+   - Floating pill (`RoundedCornerShape(26.dp)`) elevated over the canvas.
+   - Left: `+` Action button opening quick skills/tools menu (git status, run tests, review diffs).
+   - Center: Auto-expanding multi-line text input ("Message Antigravity...").
+   - Right: Circular action button:
+     - Mic icon when input is empty.
+     - Solid circular Up-Arrow Send button when text is entered.
+     - Solid circular Stop button when agent is executing.
+
+5. **Minimal Empty State (Welcome Screen):**
+   - Centered subtle Antigravity emblem.
+   - Warm greeting: "What can I help you build?"
+   - 3-4 clean suggestion prompt pills (e.g., "Run git status & diffs", "Analyze project structure", "Search phone storage").
 
 ## Locked Architectural Decisions
-- Static ARM64 bash binary bundled as `libbash.so` in `android/app/src/main/jniLibs/arm64-v8a/`.
-- `BootstrapManager.kt` exports `SHELL` pointing to `libbash.so` (or `/system/bin/sh`).
-- Symlinks `binDir/bash -> libbash.so` and `binDir/sh -> /system/bin/sh`.
-- `AndroidManifest.xml` declares `MANAGE_EXTERNAL_STORAGE` and `READ_EXTERNAL_STORAGE`.
-- Just-in-Time prompt in `ChatScreen`/`AgyViewModel` prompts user with an interactive dialog linking directly to `Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION`.
-- Full GSD Core skills packaged in `android/app/src/main/assets/skills/` and auto-extracted by `BootstrapManager.kt`.
-- UI remains minimal: slash commands (`/gsd-*`) route directly to `libagy.so`.
+- Architecture: Compose Material3 `ModalNavigationDrawer` wrapping `Scaffold` with custom TopAppBar and floating InputBar.
+- Styling: Authentic Antigravity dark theme (`#131314`, `#1E1F22`, `#2B2D31`) with refined typography.
+- Backwards Compatibility: Preserve all existing ViewModel hooks, speech recognition, foreground service bindings, approval flows, tool calls, and storage permissions.
 
 ## Verification & Backpressure Seams
-- Unit tests: `./gradlew test` (verifying `BootstrapManagerTest`, environment variables, shell resolution).
-- Build verification: `./gradlew assembleDebug` (producing verified `android/agy-mobile-debug.apk`).
-- APK asset verification: inspecting APK entries for `libbash.so`, `libagy.so`, and GSD skills.
+- Unit Tests: `./gradlew test` passes all tests in `BootstrapManagerTest`, `AgyViewModelTest`, and UI component tests.
+- Build & Assembly: `./gradlew assembleDebug` successfully produces `android/app/build/outputs/apk/debug/app-debug.apk`.
+- Packaging: Export updated `android/agy-mobile-debug.apk`.
