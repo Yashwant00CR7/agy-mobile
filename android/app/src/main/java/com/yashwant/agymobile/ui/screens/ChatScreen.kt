@@ -290,7 +290,11 @@ fun ChatScreen(
                             MessageRole.TOOL -> {
                                 ToolCallCard(
                                     toolName = msg.toolName ?: "action",
-                                    argsJson = msg.toolArgs ?: msg.content
+                                    argsJson = msg.toolArgs ?: msg.content,
+                                    output = msg.toolOutput,
+                                    error = msg.toolError,
+                                    status = msg.toolStatus,
+                                    durationMs = msg.durationMs
                                 )
                             }
 
