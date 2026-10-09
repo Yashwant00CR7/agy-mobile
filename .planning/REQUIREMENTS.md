@@ -94,3 +94,27 @@
   - Update `BootstrapManagerTest.kt` to verify `/system/bin/sh` and `/bin/sh` resolution.
   - Run `./gradlew test` and verify 100% pass rate.
   - Assemble release debug APK `android/agy-mobile-debug.apk` and verify APK size drops by ~2.4MB.
+
+---
+
+## Milestone v2.0.0: Interactive File & Directory Deep-Linking with FileProvider
+
+- [ ] **REQ-47**: **FileProvider & System File Intent Architecture**:
+  - Configure `androidx.core.content.FileProvider` in `AndroidManifest.xml` with authority `${applicationId}.fileprovider`.
+  - Provide `res/xml/file_paths.xml` allowing `<external-path>` and `<files-path>`.
+  - Implement `FileOpener.kt` to launch `Intent(Intent.ACTION_VIEW)` with `content://` URI, correct MIME types, and `FLAG_GRANT_READ_URI_PERMISSION`.
+- [ ] **REQ-48**: **Markdown Link Parser with URL Percent-Decoding**:
+  - Implement `MarkdownLinkParser.kt` to extract markdown links `[label](url)` and bare file/directory/web URIs.
+  - Properly URL-decode `%20`, `%C2%A0`, and UTF-8 characters via `URLDecoder.decode(..., "UTF-8")` to access real files on disk.
+  - Categorize links into Directory, Image, Document, or Web.
+- [ ] **REQ-49**: **Clickable Inline Markdown Links in Compose**:
+  - Upgrade `RichMarkdownMessage` in `ChatScreen.kt` using Compose `AnnotatedString` with link annotations and click listener.
+  - Display clean human-readable labels with icon prefix (📁 for directories, 🖼️ for images, 📄 for documents, 🔗 for web links), hiding raw URLs.
+  - Style with distinct `AntigravityBlue` accent and subtle underline.
+- [ ] **REQ-50**: **Direct Deep-Link Action Dispatcher**:
+  - For directory links: Silently switch workspace in `AgyViewModel` (`selectWorkspace(dir, notify = true)`) and show an Android Toast confirming workspace switch.
+  - For file links: Open in default external apps via `FileOpener.openFile()`.
+  - For web links: Open in default browser.
+- [ ] **REQ-51**: **Unit Testing, Code Review & Release APK Build**:
+  - Add unit tests for `MarkdownLinkParser` and URL-decoding in `MarkdownLinkParserTest.kt`.
+  - Run `./gradlew test` and assemble `android/agy-mobile-debug.apk`.

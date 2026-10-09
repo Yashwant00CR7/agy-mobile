@@ -52,3 +52,12 @@
   - **Goal:** Purge libbash.so, resolve primary shell to Android /system/bin/sh, symlink bin/bash to /system/bin/sh, update agent rules, update drawer diagnostics, and build lightweight APK.
   - **Requirements Addressed:** REQ-43, REQ-44, REQ-45, REQ-46.
   - **Success Criteria:** Agent executes commands like `ls` and `find` on device folders without exit code 159 (SIGSYS), tests pass, APK size reduces by ~2.4MB.
+
+### Milestone v2.0.0: Interactive File & Directory Deep-Linking with FileProvider
+*Goal:* Enable users to tap file and folder links directly in the chat to open documents and images in default Android apps via FileProvider or switch into the referenced folder.
+
+#### Phases
+- [ ] **Phase 10: Interactive File & Directory Deep-Linking with FileProvider**
+  - **Goal:** Set up FileProvider in manifest, parse markdown links with URL-decoding, style clean inline links with icons, and dispatch directory switches and external app view intents.
+  - **Requirements Addressed:** REQ-47, REQ-48, REQ-49, REQ-50, REQ-51.
+  - **Success Criteria:** Tapping a directory link switches workspace with a toast; tapping an image/PDF/document link opens the default viewer via FileProvider; links render as clean labels with icons.
