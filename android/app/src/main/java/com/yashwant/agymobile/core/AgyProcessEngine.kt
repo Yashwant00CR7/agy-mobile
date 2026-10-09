@@ -18,6 +18,15 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.concurrent.ConcurrentHashMap
 
+enum class LogLevel { INFO, WARN, ERROR, DEBUG }
+
+data class EngineLogEntry(
+    val timestamp: Long = System.currentTimeMillis(),
+    val tag: String,
+    val message: String,
+    val level: LogLevel = LogLevel.INFO
+)
+
 class AgyProcessEngine(
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -28,10 +37,14 @@ class AgyProcessEngine(
     private val _events = MutableSharedFlow<AgyEvent>(extraBufferCapacity = 64)
     val events: SharedFlow<AgyEvent> = _events.asSharedFlow()
 
+    private val _engineLogs = MutableStateFlow<List<EngineLogEntry>>(emptyList())
+    val engineLogs: StateFlow<List<EngineLogEntry>> = _engineLogs.asStateFlow()
+
     private var activeProcess: Process? = null
     private var activeConversationId: String? = null
     private val pendingApprovals = ConcurrentHashMap<String, CompletableDeferred<Boolean>>()
     @Volatile private var turnCompleteEmitted = false
+    @Volatile private var isPlannedShutdown = false
 
     // Persistent stream-json daemon session management (REQ-25)
     data class DaemonConfig(
@@ -50,7 +63,31 @@ class AgyProcessEngine(
     fun getActiveConversationId(): String? = activeConversationId
     fun isRunning(): Boolean = _status.value == AgentStatus.RUNNING || _status.value == AgentStatus.WAITING_APPROVAL
 
+    fun log(tag: String, message: String, level: LogLevel = LogLevel.INFO) {
+        val entry = EngineLogEntry(tag = tag, message = message, level = level)
+        val current = _engineLogs.value
+        _engineLogs.value = if (current.size >= 250) current.drop(current.size - 249) + entry else current + entry
+    }
+
+    fun clearLogs() {
+        _engineLogs.value = emptyList()
+    }
+
+    private fun isStreamCloseException(e: Throwable): Boolean {
+        val msg = e.message?.lowercase() ?: ""
+        return msg.contains("read interrupted by close()") ||
+                msg.contains("stream closed") ||
+                msg.contains("closed by peer") ||
+                msg.contains("bad file descriptor") ||
+                msg.contains("broken pipe") ||
+                msg.contains("socket closed") ||
+                e is java.io.InterruptedIOException ||
+                e is CancellationException
+    }
+
     fun stopDaemon() {
+        isPlannedShutdown = true
+        log("Engine", "Stopping daemon process", LogLevel.INFO)
         try {
             daemonReaderJob?.cancel()
             daemonErrorJob?.cancel()
@@ -85,6 +122,9 @@ class AgyProcessEngine(
             }
             if (!convId.isNullOrBlank()) {
                 activeConversationId = convId
+                if (daemonConfig != null && daemonConfig?.conversationId != convId) {
+                    daemonConfig = daemonConfig?.copy(conversationId = convId)
+                }
             }
 
             val type = json.optString("type", json.optString("event", ""))
@@ -115,6 +155,7 @@ class AgyProcessEngine(
                     val name = call.optString("name", call.optString("tool", "unknown"))
                     val argsObj = call.optJSONObject("args") ?: call.optJSONObject("parameters") ?: JSONObject()
                     val argsJson = argsObj.toString()
+                    log("ToolCall", "$name (${argsJson.take(80)})", LogLevel.INFO)
 
                     val requiresApproval = !autonomous && (step.optBoolean("requiresApproval", !autonomous))
                     if (requiresApproval) {
@@ -130,6 +171,7 @@ class AgyProcessEngine(
                     val name = res.optString("name", "")
                     val output = if (res.has("output")) res.getString("output") else null
                     val error = if (res.has("error")) res.getString("error") else null
+                    log("ToolResult", "$name: ${(output ?: error ?: "ok").take(80)}", if (error != null) LogLevel.WARN else LogLevel.INFO)
                     return AgyEvent.ToolResult(id, name, output, error)
                 }
 
@@ -147,10 +189,12 @@ class AgyProcessEngine(
                 val res = json.getJSONObject("result")
                 if (res.optString("status") == "ERROR") {
                     val err = res.optString("error", "Unknown agent error")
+                    log("Engine", "Agent result error: $err", LogLevel.ERROR)
                     return AgyEvent.Error(err)
                 }
                 val summary = if (res.has("response")) res.getString("response") else if (res.has("status")) res.getString("status") else null
                 turnCompleteEmitted = true
+                log("Engine", "Turn complete for $activeConversationId", LogLevel.INFO)
                 return AgyEvent.TurnComplete(activeConversationId, summary)
             }
 
@@ -293,11 +337,26 @@ class AgyProcessEngine(
             currentTurnDeferred = turnDeferred
 
             val isDaemonAlive = activeProcess?.isAlive == true
-            val canReuseDaemon = isDaemonAlive && daemonConfig == targetConfig && daemonWriter != null
+            val isSameSession = targetConfig.conversationId == null ||
+                    targetConfig.conversationId == activeConversationId ||
+                    targetConfig.conversationId == daemonConfig?.conversationId
+
+            val canReuseDaemon = isDaemonAlive &&
+                    daemonWriter != null &&
+                    daemonConfig != null &&
+                    isSameSession &&
+                    daemonConfig?.workspaceDir == targetConfig.workspaceDir &&
+                    daemonConfig?.modelSlug == targetConfig.modelSlug &&
+                    daemonConfig?.effort == targetConfig.effort &&
+                    daemonConfig?.autonomous == targetConfig.autonomous
 
             if (canReuseDaemon) {
-                // REQ-25: Fast path - Reuse persistent process over stdin (Zero cold start!)
+                // REQ-25 / REQ-38: Fast path - Reuse persistent warm process over stdin (Zero cold start)
+                log("Engine", "Reusing warm daemon process (session: ${request.conversationId})", LogLevel.INFO)
                 try {
+                    currentTurnDeferred = turnDeferred
+                    turnCompleteEmitted = false
+
                     val userMsg = JSONObject().apply {
                         put("event", "user")
                         put("message", JSONObject().apply {
@@ -308,7 +367,8 @@ class AgyProcessEngine(
                     writer.write(userMsg.toString())
                     writer.newLine()
                     writer.flush()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    log("Engine", "Error writing to warm daemon: ${e.message}, restarting", LogLevel.WARN)
                     stopDaemon()
                 }
             }
@@ -316,6 +376,8 @@ class AgyProcessEngine(
             if (activeProcess?.isAlive != true || daemonWriter == null) {
                 // Cold path: spawn daemon process with stream-json
                 stopDaemon()
+                isPlannedShutdown = false
+                log("Engine", "Spawning cold agy daemon (model: $cleanModelSlug, dir: ${request.workspaceDir ?: "."})", LogLevel.INFO)
 
                 val args = mutableListOf(
                     agyExecutable.absolutePath,
@@ -370,6 +432,7 @@ class AgyProcessEngine(
                             while (isActive) {
                                 errLine = errReader.readLine() ?: break
                                 errorBuffer.append(errLine).append("\n")
+                                log("Stderr", errLine, LogLevel.WARN)
                                 val authUrl = AuthManager.extractOAuthUrl(errLine)
                                 if (authUrl != null) {
                                     _events.emit(AgyEvent.AuthRequired(authUrl))
@@ -382,13 +445,15 @@ class AgyProcessEngine(
                         try {
                             processStream(process.inputStream, request.autonomous)
                         } catch (e: Exception) {
-                            if (e !is CancellationException) {
+                            if (!isPlannedShutdown && !isStreamCloseException(e)) {
+                                log("Engine", "Stream read error: ${e.message}", LogLevel.ERROR)
                                 _events.emit(AgyEvent.Error(e.message ?: "Stream read error"))
                             }
                         } finally {
-                            if (_status.value == AgentStatus.RUNNING) {
+                            if (_status.value == AgentStatus.RUNNING && !isPlannedShutdown) {
                                 val rawErr = errorBuffer.toString().trim()
                                 val cleanErr = parseAgyErrorMessage(rawErr, process.exitValueSafe())
+                                log("Engine", "Abnormal process termination: $cleanErr", LogLevel.ERROR)
                                 _events.emit(AgyEvent.Error(cleanErr))
                                 _status.value = AgentStatus.ERROR
                             }

@@ -129,4 +129,38 @@ class AgyProcessEngineTest {
         assertEquals("/storage/emulated/0/Download/MyProject", req.workspaceDir)
         assertEquals("conv-folder-1", req.conversationId)
     }
+
+    @Test
+    fun testEngineLoggingAndBuffer() {
+        val engine = AgyProcessEngine()
+        assertEquals(0, engine.engineLogs.value.size)
+
+        engine.log("TestTag", "Hello engine log")
+        assertEquals(1, engine.engineLogs.value.size)
+        assertEquals("TestTag", engine.engineLogs.value[0].tag)
+        assertEquals("Hello engine log", engine.engineLogs.value[0].message)
+
+        for (i in 1..300) {
+            engine.log("LoopTag", "Log $i")
+        }
+        // Retains at most 250 logs
+        assertEquals(250, engine.engineLogs.value.size)
+
+        engine.clearLogs()
+        assertEquals(0, engine.engineLogs.value.size)
+    }
+
+    @Test
+    fun testToolResultParsing() {
+        val engine = AgyProcessEngine()
+        val evResult = engine.parseLine(
+            "{\"event\":\"step_update\",\"step_update\":{\"step_type\":\"tool_result\",\"tool_result\":{\"id\":\"call_1\",\"name\":\"run_command\",\"output\":\"file1.txt\\nfile2.txt\"}}}",
+            true
+        )
+        assertTrue(evResult is AgyEvent.ToolResult)
+        val tr = evResult as AgyEvent.ToolResult
+        assertEquals("call_1", tr.id)
+        assertEquals("run_command", tr.name)
+        assertEquals("file1.txt\nfile2.txt", tr.output)
+    }
 }

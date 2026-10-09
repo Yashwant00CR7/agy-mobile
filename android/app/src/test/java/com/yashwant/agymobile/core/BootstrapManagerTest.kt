@@ -314,5 +314,49 @@ class BootstrapManagerTest {
         val extractedRule = File(manager.geminiDir, "rules/system-android.md")
         assertTrue(extractedRule.exists())
     }
+
+    @Test
+    fun testSelfHealingShellSymlinksAfterNativeLibMove() {
+        val root = tempFolder.newFolder("app_files_selfheal")
+        val oldNativeDir = tempFolder.newFolder("old_native_lib")
+        val oldLibBash = File(oldNativeDir, "libbash.so")
+        oldLibBash.writeText("#!/bin/sh\necho old_bash")
+        oldLibBash.setExecutable(true)
+
+        val managerOld = BootstrapManager(root, oldNativeDir)
+        managerOld.initializeDirectories()
+
+        val bashLink = File(managerOld.binDir, "bash")
+        assertTrue(bashLink.exists())
+
+        // Simulate APK upgrade: old directory is deleted, new native lib dir is created with different path
+        oldLibBash.delete()
+        oldNativeDir.delete()
+
+        // bashLink is now dangling symlink
+        assertFalse(bashLink.exists())
+
+        val newNativeDir = tempFolder.newFolder("new_native_lib")
+        val newLibBash = File(newNativeDir, "libbash.so")
+        newLibBash.writeText("#!/bin/sh\necho new_bash")
+        newLibBash.setExecutable(true)
+
+        // Initialize new manager with new native dir (simulates new app startup)
+        val managerNew = BootstrapManager(root, newNativeDir)
+        managerNew.initializeDirectories()
+
+        // bashLink must be self-healed and exist
+        assertTrue(bashLink.exists())
+    }
+
+    @Test
+    fun testShellFallbackScriptCreation() {
+        val root = tempFolder.newFolder("app_files_fallback_script")
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
+
+        val bashFile = File(manager.binDir, "bash")
+        assertTrue(bashFile.exists())
+    }
 }
 
