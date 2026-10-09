@@ -40,6 +40,7 @@ import com.yashwant.agymobile.model.ChatMessage
 import com.yashwant.agymobile.model.MessageRole
 import com.yashwant.agymobile.ui.components.*
 import com.yashwant.agymobile.ui.theme.*
+import com.yashwant.agymobile.util.MarkdownLinkParser
 
 @Composable
 fun ChatScreen(
@@ -68,6 +69,7 @@ fun ChatScreen(
     hasStoragePermission: Boolean = true,
     onRequestStoragePermission: () -> Unit = {},
     onOpenFolderPicker: () -> Unit = {},
+    onOpenLink: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -257,7 +259,10 @@ fun ChatScreen(
                                         }
 
                                         // Assistant Rich Markdown Body
-                                        RichMarkdownMessage(content = msg.content)
+                                        RichMarkdownMessage(
+                                            content = msg.content,
+                                            onOpenLink = onOpenLink
+                                        )
 
                                         // Subtle Copy Action Icon
                                         Row(
@@ -503,6 +508,7 @@ fun ChatScreen(
 @Composable
 private fun RichMarkdownMessage(
     content: String,
+    onOpenLink: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val clipboardManager = LocalClipboardManager.current
@@ -564,7 +570,7 @@ private fun RichMarkdownMessage(
                 }
                 is MarkdownBlock.Text -> {
                     Text(
-                        text = formatAnnotatedMarkdown(block.text),
+                        text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
                         color = AssistantText,
                         fontSize = 15.sp,
                         lineHeight = 23.sp
@@ -597,26 +603,6 @@ private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
         }
     }
     return blocks
-}
-
-private fun formatAnnotatedMarkdown(text: String): AnnotatedString {
-    return buildAnnotatedString {
-        var cursor = 0
-        val regex = Regex("\\*\\*(.*?)\\*\\*")
-        val matches = regex.findAll(text)
-        for (match in matches) {
-            if (match.range.first > cursor) {
-                append(text.substring(cursor, match.range.first))
-            }
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = TextPrimary)) {
-                append(match.groupValues[1])
-            }
-            cursor = match.range.last + 1
-        }
-        if (cursor < text.length) {
-            append(text.substring(cursor))
-        }
-    }
 }
 
 @Composable

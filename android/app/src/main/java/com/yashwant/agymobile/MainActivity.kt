@@ -24,6 +24,7 @@ import com.yashwant.agymobile.ui.drawers.ChatGptDrawer
 import com.yashwant.agymobile.ui.screens.ChatScreen
 import com.yashwant.agymobile.ui.theme.AgyTheme
 import com.yashwant.agymobile.ui.util.BrowserHelper
+import com.yashwant.agymobile.util.FileOpener
 import com.yashwant.agymobile.viewmodel.AgyViewModel
 import kotlinx.coroutines.launch
 import java.io.File
@@ -175,7 +176,19 @@ class MainActivity : ComponentActivity() {
                         onClearChat = { viewModel.clearChat() },
                         hasStoragePermission = hasStorage,
                         onRequestStoragePermission = { requestStoragePermission() },
-                        onOpenFolderPicker = { showFolderPickerModal = true }
+                        onOpenFolderPicker = { showFolderPickerModal = true },
+                        onOpenLink = { url ->
+                            FileOpener.openTarget(
+                                context = this@MainActivity,
+                                rawUrlOrPath = url,
+                                onSelectDirectory = { dir ->
+                                    if (WorkspaceManager.isExternalStoragePath(dir.absolutePath) && !hasStoragePermission()) {
+                                        requestStoragePermission()
+                                    }
+                                    viewModel.selectWorkspace(dir, notify = true)
+                                }
+                            )
+                        }
                     )
                 }
 
