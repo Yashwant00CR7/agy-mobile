@@ -49,6 +49,7 @@ fun ChatGptDrawer(
     onDeleteConversation: (String) -> Unit = {},
     engineLogs: List<com.yashwant.agymobile.core.EngineLogEntry> = emptyList(),
     onClearEngineLogs: () -> Unit = {},
+    shellDescription: String = "/system/bin/sh (Android Bionic Shell)",
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -552,7 +553,7 @@ fun ChatGptDrawer(
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Active Engines:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             Text("• libagy.so (ARM64 Native Agent)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-                            Text("• /system/bin/sh (Android Bionic Shell)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text("• $shellDescription", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                         }
                     }
                     Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)
@@ -643,7 +644,7 @@ fun ChatGptDrawer(
                             ) {
                                 Text("Shell Target:", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    "/system/bin/sh (Android Bionic Shell)",
+                                    shellDescription,
                                     color = EmeraldSuccess,
                                     fontSize = 10.sp,
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -677,7 +678,7 @@ fun ChatGptDrawer(
                                 val text = buildString {
                                     appendLine("=== AGY ENGINE & SHELL DIAGNOSTICS ===")
                                     appendLine("Workspace: ${workspaceInfo.currentPath}")
-                                    appendLine("Shell: /system/bin/sh (Bionic Shell, linked as bash/sh)")
+                                    appendLine("Shell: $shellDescription (linked as bash/sh)")
                                     appendLine("Logs Recorded: ${engineLogs.size}")
                                     appendLine("======================================")
                                     engineLogs.forEach {

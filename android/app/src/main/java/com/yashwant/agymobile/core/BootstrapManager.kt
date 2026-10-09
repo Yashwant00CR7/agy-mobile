@@ -196,19 +196,20 @@ class BootstrapManager(
     }
 
     fun getShellExecutable(): File {
-        val systemSh = File("/system/bin/sh")
-        if (systemSh.exists() && !systemSh.isDirectory) {
-            return systemSh
+        val candidates = listOf("/system/bin/sh", "/bin/sh", "/usr/bin/sh")
+        return candidates.asSequence()
+            .map { File(it) }
+            .firstOrNull { it.exists() && !it.isDirectory }
+            ?: File(binDir, "sh")
+    }
+
+    fun getShellDescription(): String {
+        val shell = getShellExecutable()
+        return if (shell.absolutePath == "/system/bin/sh") {
+            "/system/bin/sh (Android Bionic Shell)"
+        } else {
+            "${shell.absolutePath} (System Shell)"
         }
-        val binSh = File("/bin/sh")
-        if (binSh.exists() && !binSh.isDirectory) {
-            return binSh
-        }
-        val usrBinSh = File("/usr/bin/sh")
-        if (usrBinSh.exists() && !usrBinSh.isDirectory) {
-            return usrBinSh
-        }
-        return File(binDir, "sh")
     }
 
     private fun setupLinkOrFallback(linkFile: File, targetFile: File) {

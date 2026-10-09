@@ -192,7 +192,7 @@ class BootstrapManagerTest {
     }
 
     @Test
-    fun testShellResolutionNativeBionic() {
+    fun testShellResolutionAndDescription() {
         val root = tempFolder.newFolder("app_files_bionic")
         val manager = BootstrapManager(root)
         val shell = manager.getShellExecutable()
@@ -201,19 +201,9 @@ class BootstrapManagerTest {
 
         val env = manager.getEnvironmentVariables()
         assertEquals(shell.absolutePath, env["SHELL"])
-    }
 
-    @Test
-    fun testShellResolutionFallback() {
-        val root = tempFolder.newFolder("app_files_fallback")
-        val manager = BootstrapManager(root)
-        val shell = manager.getShellExecutable()
-        assertNotNull(shell)
-        assertTrue(shell.name.contains("sh"))
-
-        val env = manager.getEnvironmentVariables()
-        assertTrue(env.containsKey("SHELL"))
-        assertNotNull(env["SHELL"])
+        val desc = manager.getShellDescription()
+        assertTrue(desc.contains("Shell"))
     }
 
     @Test

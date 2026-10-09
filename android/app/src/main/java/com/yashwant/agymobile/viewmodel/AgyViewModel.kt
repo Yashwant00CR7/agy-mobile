@@ -498,4 +498,6 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun resolveApproval(callId: String, approved: Boolean, service: AgyAgentService? = null) {
         service?.engine?.resolveApproval(callId, approved)
     }
+
+    fun getShellDescription(): String = bootstrapManager.getShellDescription()
 }

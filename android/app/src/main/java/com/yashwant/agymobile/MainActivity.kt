@@ -145,7 +145,8 @@ class MainActivity : ComponentActivity() {
                             deviceShortcuts = viewModel.getDeviceShortcuts(),
                             onDeleteConversation = { id -> viewModel.deleteConversation(id) },
                             engineLogs = engineLogs,
-                            onClearEngineLogs = { viewModel.clearEngineLogs() }
+                            onClearEngineLogs = { viewModel.clearEngineLogs() },
+                            shellDescription = viewModel.getShellDescription()
                         )
                     }
                 ) {
