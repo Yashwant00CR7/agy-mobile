@@ -238,4 +238,12 @@ class WorkspaceManager(
         conversations.sortByDescending { it.lastModified }
         return conversations.take(limit)
     }
+
+    fun deleteBrainSession(id: String): Boolean {
+        if (!brainDir.exists()) return false
+        val convDir = File(brainDir, id)
+        return if (convDir.exists()) {
+            convDir.deleteRecursively()
+        } else false
+    }
 }

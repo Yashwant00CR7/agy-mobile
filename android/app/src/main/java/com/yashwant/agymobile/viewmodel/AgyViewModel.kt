@@ -199,16 +199,31 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private var eventsCollectionJob: kotlinx.coroutines.Job? = null
     private var boundServiceInstance: AgyAgentService? = null
 
+    private val _engineLogs = MutableStateFlow<List<com.yashwant.agymobile.core.EngineLogEntry>>(emptyList())
+    val engineLogs: StateFlow<List<com.yashwant.agymobile.core.EngineLogEntry>> = _engineLogs.asStateFlow()
+
     fun attachService(service: AgyAgentService) {
         if (boundServiceInstance !== service || eventsCollectionJob == null || eventsCollectionJob?.isActive == false) {
             eventsCollectionJob?.cancel()
             boundServiceInstance = service
             eventsCollectionJob = viewModelScope.launch {
-                service.engine.events.collect { event ->
-                    handleEvent(event)
+                launch {
+                    service.engine.events.collect { event ->
+                        handleEvent(event)
+                    }
+                }
+                launch {
+                    service.engine.engineLogs.collect { logs ->
+                        _engineLogs.value = logs
+                    }
                 }
             }
         }
+    }
+
+    fun clearEngineLogs() {
+        boundServiceInstance?.engine?.clearLogs()
+        _engineLogs.value = emptyList()
     }
 
     fun openAuthSheet() {
@@ -244,6 +259,17 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         _messages.value = emptyList()
         activeConversationId = null
         boundServiceInstance?.engine?.stopDaemon()
+    }
+
+    fun deleteConversation(id: String) {
+        conversationRepository.deleteConversation(id)
+        workspaceManager.deleteBrainSession(id)
+        if (id == activeConversationId) {
+            _messages.value = emptyList()
+            activeConversationId = null
+            boundServiceInstance?.engine?.stopDaemon()
+        }
+        refreshConversations()
     }
 
     fun submitAuthCode(code: String) {
@@ -393,8 +419,34 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     content = event.argsJson,
                     toolName = event.name,
                     toolCallId = event.id,
-                    toolArgs = event.argsJson
+                    toolArgs = event.argsJson,
+                    toolStatus = "RUNNING"
                 )
+            }
+            is AgyEvent.ToolResult -> {
+                val current = _messages.value
+                val existingIdx = current.indexOfLast { it.toolCallId == event.id }
+                if (existingIdx != -1) {
+                    val existing = current[existingIdx]
+                    val duration = System.currentTimeMillis() - existing.timestamp
+                    val updated = existing.copy(
+                        toolOutput = event.output,
+                        toolError = event.error,
+                        toolStatus = if (event.error != null) "ERROR" else "SUCCESS",
+                        durationMs = duration
+                    )
+                    _messages.value = current.toMutableList().apply { set(existingIdx, updated) }
+                } else {
+                    _messages.value = current + ChatMessage(
+                        role = MessageRole.TOOL,
+                        content = event.output ?: event.error ?: "",
+                        toolName = event.name,
+                        toolCallId = event.id,
+                        toolOutput = event.output,
+                        toolError = event.error,
+                        toolStatus = if (event.error != null) "ERROR" else "SUCCESS"
+                    )
+                }
             }
             is AgyEvent.ApprovalRequired -> {
                 _messages.value = _messages.value + ChatMessage(

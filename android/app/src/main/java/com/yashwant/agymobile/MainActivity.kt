@@ -84,6 +84,7 @@ class MainActivity : ComponentActivity() {
                 val showAuthSheet by viewModel.showAuthSheet.collectAsState()
                 val selectedModel by viewModel.selectedModel.collectAsState()
                 val selectedEffort by viewModel.selectedEffort.collectAsState()
+                val engineLogs by viewModel.engineLogs.collectAsState()
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
@@ -141,7 +142,10 @@ class MainActivity : ComponentActivity() {
                                 closeDrawer()
                                 showFolderPickerModal = true
                             },
-                            deviceShortcuts = viewModel.getDeviceShortcuts()
+                            deviceShortcuts = viewModel.getDeviceShortcuts(),
+                            onDeleteConversation = { id -> viewModel.deleteConversation(id) },
+                            engineLogs = engineLogs,
+                            onClearEngineLogs = { viewModel.clearEngineLogs() }
                         )
                     }
                 ) {

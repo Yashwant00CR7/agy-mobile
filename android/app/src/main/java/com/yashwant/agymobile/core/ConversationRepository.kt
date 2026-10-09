@@ -37,6 +37,10 @@ class ConversationRepository(
                 if (msg.toolName != null) mJson.put("toolName", msg.toolName)
                 if (msg.toolCallId != null) mJson.put("toolCallId", msg.toolCallId)
                 if (msg.toolArgs != null) mJson.put("toolArgs", msg.toolArgs)
+                if (msg.toolOutput != null) mJson.put("toolOutput", msg.toolOutput)
+                if (msg.toolError != null) mJson.put("toolError", msg.toolError)
+                if (msg.toolStatus != null) mJson.put("toolStatus", msg.toolStatus)
+                if (msg.durationMs != null) mJson.put("durationMs", msg.durationMs)
                 if (msg.diffFile != null) mJson.put("diffFile", msg.diffFile)
                 mJson.put("timestamp", msg.timestamp)
                 messagesArr.put(mJson)
@@ -79,6 +83,10 @@ class ConversationRepository(
                         toolName = if (mJson.has("toolName")) mJson.getString("toolName") else null,
                         toolCallId = if (mJson.has("toolCallId")) mJson.getString("toolCallId") else null,
                         toolArgs = if (mJson.has("toolArgs")) mJson.getString("toolArgs") else null,
+                        toolOutput = if (mJson.has("toolOutput")) mJson.getString("toolOutput") else null,
+                        toolError = if (mJson.has("toolError")) mJson.getString("toolError") else null,
+                        toolStatus = if (mJson.has("toolStatus")) mJson.getString("toolStatus") else null,
+                        durationMs = if (mJson.has("durationMs")) mJson.getLong("durationMs") else null,
                         diffFile = if (mJson.has("diffFile")) mJson.getString("diffFile") else null,
                         timestamp = mJson.optLong("timestamp", System.currentTimeMillis())
                     )

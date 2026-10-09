@@ -132,4 +132,21 @@ class WorkspaceManagerTest {
         assertFalse(WorkspaceManager.isExternalStoragePath("/data/user/0/com.yashwant.agymobile/files"))
         assertFalse(WorkspaceManager.isExternalStoragePath(null))
     }
+
+    @Test
+    fun testDeleteBrainSession() {
+        val root = tempFolder.newFolder("workspaces_del")
+        val brain = tempFolder.newFolder("brain_del")
+        val manager = WorkspaceManager(root, brain)
+
+        val conv1 = File(brain, "conv-to-delete/.system_generated/logs")
+        conv1.mkdirs()
+        File(conv1, "transcript.jsonl").writeText("sample log")
+
+        assertTrue(File(brain, "conv-to-delete").exists())
+        val deleted = manager.deleteBrainSession("conv-to-delete")
+        assertTrue(deleted)
+        assertFalse(File(brain, "conv-to-delete").exists())
+        assertFalse(manager.deleteBrainSession("non-existent"))
+    }
 }

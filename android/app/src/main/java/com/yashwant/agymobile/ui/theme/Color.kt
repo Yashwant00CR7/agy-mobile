@@ -36,6 +36,7 @@ val AmberWarning = Color(0xFFF59E0B)
 val AmberGlow = Color(0x1FF59E0B)
 val CrimsonDanger = Color(0xFFEF4444)
 val CrimsonGlow = Color(0x1FEF4444)
+val RedError = CrimsonDanger
 
 // High-Craft Typography
 val TextPrimary = Color(0xFFECECEC)

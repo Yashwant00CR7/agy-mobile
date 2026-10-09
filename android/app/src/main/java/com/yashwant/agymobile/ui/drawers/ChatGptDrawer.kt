@@ -46,6 +46,9 @@ fun ChatGptDrawer(
     onCloseDrawer: () -> Unit,
     onOpenFolderPicker: () -> Unit = {},
     deviceShortcuts: List<com.yashwant.agymobile.core.DeviceShortcut> = emptyList(),
+    onDeleteConversation: (String) -> Unit = {},
+    engineLogs: List<com.yashwant.agymobile.core.EngineLogEntry> = emptyList(),
+    onClearEngineLogs: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -53,6 +56,8 @@ fun ChatGptDrawer(
     var newProjectName by remember { mutableStateOf("") }
     var showNewProjectDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showEngineLogsDialog by remember { mutableStateOf(false) }
+    var conversationPendingDelete by remember { mutableStateOf<ConversationItem?>(null) }
 
     ModalDrawerSheet(
         modifier = modifier
@@ -387,6 +392,9 @@ fun ChatGptDrawer(
                                 onClick = {
                                     onResumeConversation(conv.id)
                                     onCloseDrawer()
+                                },
+                                onDelete = {
+                                    conversationPendingDelete = conv
                                 }
                             )
                         }
@@ -548,7 +556,22 @@ fun ChatGptDrawer(
                         }
                     }
                     Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)
-                    Text("Version: agy-mobile v1.2.0 (ChatGPT UX)", color = TextMuted, fontSize = 11.sp)
+                    Text("Version: agy-mobile v1.8.0 (Mobile AI)", color = TextMuted, fontSize = 11.sp)
+
+                    OutlinedButton(
+                        onClick = {
+                            showSettingsDialog = false
+                            showEngineLogsDialog = true
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AntigravityBlue),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityBlue.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Engine & Shell Logs (${engineLogs.size})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             },
             confirmButton = {
@@ -560,12 +583,161 @@ fun ChatGptDrawer(
             textContentColor = TextPrimary
         )
     }
+
+    if (showEngineLogsDialog) {
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+        val dateFormat = remember { java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()) }
+
+        AlertDialog(
+            onDismissRequest = { showEngineLogsDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Code, contentDescription = null, tint = AntigravityCyan, modifier = Modifier.size(20.dp))
+                        Text("Engine & Shell Logs", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Text("${engineLogs.size} logs", color = TextMuted, fontSize = 11.sp)
+                }
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                val text = engineLogs.joinToString("\n") {
+                                    "[${dateFormat.format(java.util.Date(it.timestamp))}] [${it.tag}] ${it.level}: ${it.message}"
+                                }
+                                clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
+                            }
+                        ) {
+                            Text("Copy All", color = AntigravityBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        TextButton(onClick = onClearEngineLogs) {
+                            Text("Clear", color = RedError, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .heightIn(min = 120.dp, max = 320.dp)
+                    ) {
+                        if (engineLogs.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                Text("No engine logs recorded yet", color = TextMuted, fontSize = 12.sp)
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                items(engineLogs) { entry ->
+                                    val timeStr = dateFormat.format(java.util.Date(entry.timestamp))
+                                    val levelColor = when (entry.level) {
+                                        com.yashwant.agymobile.core.LogLevel.ERROR -> RedError
+                                        com.yashwant.agymobile.core.LogLevel.WARN -> AmberWarning
+                                        com.yashwant.agymobile.core.LogLevel.DEBUG -> TextMuted
+                                        else -> AntigravityCyan
+                                    }
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(timeStr, color = TextMuted, fontSize = 9.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                            Text("[${entry.tag}]", color = levelColor, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                        }
+                                        Text(entry.message, color = TextPrimary, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showEngineLogsDialog = false }) {
+                    Text("Close", color = AntigravityBlue)
+                }
+            },
+            containerColor = AntigravitySurface,
+            textContentColor = TextPrimary
+        )
+    }
+
+    if (conversationPendingDelete != null) {
+        val target = conversationPendingDelete!!
+        AlertDialog(
+            onDismissRequest = { conversationPendingDelete = null },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        tint = RedError,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Delete Conversation?", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Text(
+                    text = "This will permanently delete \"${target.snippet.take(40)}\" and its session logs. This action cannot be undone.",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val id = target.id
+                        conversationPendingDelete = null
+                        onDeleteConversation(id)
+                    }
+                ) {
+                    Text("Delete", color = RedError, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { conversationPendingDelete = null }) {
+                    Text("Cancel", color = TextSecondary)
+                }
+            },
+            containerColor = AntigravitySurface,
+            textContentColor = TextPrimary
+        )
+    }
 }
 
 @Composable
 private fun DrawerHistoryItem(
     item: ConversationItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit = {}
 ) {
     Surface(
         onClick = onClick,
@@ -573,47 +745,65 @@ private fun DrawerHistoryItem(
         shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 7.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
         ) {
-            Text(
-                text = item.snippet.ifBlank { "Untitled conversation" },
-                color = TextPrimary,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            item.workspacePath?.let { path ->
-                if (path.isNotBlank()) {
-                    val folderName = File(path).name.ifBlank { "Workspace" }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = AntigravityBlue.copy(alpha = 0.8f),
-                            modifier = Modifier.size(11.dp)
-                        )
-                        Text(
-                            text = folderName,
-                            color = TextMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (item.messageCount > 0) {
-                            Text(
-                                text = "• ${item.messageCount} msgs",
-                                color = TextMuted.copy(alpha = 0.7f),
-                                fontSize = 10.sp
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = item.snippet.ifBlank { "Untitled conversation" },
+                    color = TextPrimary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                item.workspacePath?.let { path ->
+                    if (path.isNotBlank()) {
+                        val folderName = File(path).name.ifBlank { "Workspace" }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Folder,
+                                contentDescription = null,
+                                tint = AntigravityBlue.copy(alpha = 0.8f),
+                                modifier = Modifier.size(11.dp)
                             )
+                            Text(
+                                text = folderName,
+                                color = TextMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (item.messageCount > 0) {
+                                Text(
+                                    text = "• ${item.messageCount} msgs",
+                                    color = TextMuted.copy(alpha = 0.7f),
+                                    fontSize = 10.sp
+                                )
+                            }
                         }
                     }
                 }
+            }
+
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete Conversation",
+                    tint = TextMuted.copy(alpha = 0.5f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }

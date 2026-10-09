@@ -27,6 +27,10 @@ data class ChatMessage(
     val toolName: String? = null,
     val toolCallId: String? = null,
     val toolArgs: String? = null,
+    val toolOutput: String? = null,
+    val toolError: String? = null,
+    val toolStatus: String? = null,
+    val durationMs: Long? = null,
     val diffFile: String? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
