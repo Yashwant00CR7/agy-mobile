@@ -610,9 +610,63 @@ fun ChatGptDrawer(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 400.dp),
+                        .heightIn(max = 440.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // REQ-41: Engine Process & Shell Environment Diagnostic Header
+                    Surface(
+                        color = AntigravitySurfaceElevated,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Active Workspace:", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    if (workspaceInfo.currentPath.length > 32) "..." + workspaceInfo.currentPath.takeLast(29) else workspaceInfo.currentPath,
+                                    color = AntigravityBlue,
+                                    fontSize = 10.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Shell Target:", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "/system/bin/sh (fallback libbash.so)",
+                                    color = EmeraldSuccess,
+                                    fontSize = 10.sp,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Daemon Status:", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                                val latestEngineMsg = engineLogs.findLast { it.tag == "Engine" }?.message ?: "Ready"
+                                val isWarm = latestEngineMsg.contains("warm", ignoreCase = true)
+                                Text(
+                                    if (isWarm) "Warm (Zero Cold-Start)" else "Cold / Ready",
+                                    color = if (isWarm) AmberWarning else TextPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
@@ -620,8 +674,15 @@ fun ChatGptDrawer(
                     ) {
                         TextButton(
                             onClick = {
-                                val text = engineLogs.joinToString("\n") {
-                                    "[${dateFormat.format(java.util.Date(it.timestamp))}] [${it.tag}] ${it.level}: ${it.message}"
+                                val text = buildString {
+                                    appendLine("=== AGY ENGINE & SHELL DIAGNOSTICS ===")
+                                    appendLine("Workspace: ${workspaceInfo.currentPath}")
+                                    appendLine("Shell: /system/bin/sh & libbash.so")
+                                    appendLine("Logs Recorded: ${engineLogs.size}")
+                                    appendLine("======================================")
+                                    engineLogs.forEach {
+                                        appendLine("[${dateFormat.format(java.util.Date(it.timestamp))}] [${it.tag}] ${it.level}: ${it.message}")
+                                    }
                                 }
                                 clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(text))
                             }

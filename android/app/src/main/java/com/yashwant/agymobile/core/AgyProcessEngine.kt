@@ -371,6 +371,11 @@ class AgyProcessEngine(
                     log("Engine", "Error writing to warm daemon: ${e.message}, restarting", LogLevel.WARN)
                     stopDaemon()
                 }
+            } else {
+                if (isDaemonAlive) {
+                    log("Engine", "Daemon config changed or dead; stopping previous daemon for cold spawn", LogLevel.INFO)
+                    stopDaemon()
+                }
             }
 
             if (activeProcess?.isAlive != true || daemonWriter == null) {

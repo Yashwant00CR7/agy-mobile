@@ -213,59 +213,46 @@ class BootstrapManager(
         return File(binDir, "sh")
     }
 
+    private fun setupLinkOrFallback(linkFile: File, targetFile: File) {
+        try {
+            java.nio.file.Files.deleteIfExists(linkFile.toPath())
+        } catch (_: Exception) {
+            linkFile.delete()
+        }
+
+        var isReady = false
+        try {
+            java.nio.file.Files.createSymbolicLink(linkFile.toPath(), targetFile.toPath())
+            isReady = linkFile.exists()
+        } catch (_: Exception) {
+            isReady = false
+        }
+
+        if (!isReady) {
+            createShellWrapperScript(linkFile, targetFile)
+        } else {
+            linkFile.setExecutable(true, false)
+            linkFile.setReadable(true, false)
+        }
+    }
+
     fun setupShellLinks() {
         val shell = getShellExecutable()
         try {
             binDir.mkdirs()
-            val bashLink = File(binDir, "bash")
-            try {
-                java.nio.file.Files.deleteIfExists(bashLink.toPath())
-            } catch (_: Exception) {
-                bashLink.delete()
-            }
-
-            var bashReady = false
-            try {
-                java.nio.file.Files.createSymbolicLink(bashLink.toPath(), shell.toPath())
-                bashReady = bashLink.exists()
-            } catch (_: Exception) {
-                bashReady = false
-            }
-
-            if (!bashReady) {
-                createShellWrapperScript(bashLink, shell)
-            } else {
-                bashLink.setExecutable(true, false)
-                bashLink.setReadable(true, false)
-            }
-
-            val shLink = File(binDir, "sh")
+            setupLinkOrFallback(File(binDir, "bash"), shell)
             val shTarget = if (File("/system/bin/sh").exists()) File("/system/bin/sh") else shell
-            try {
-                java.nio.file.Files.deleteIfExists(shLink.toPath())
-            } catch (_: Exception) {
-                shLink.delete()
-            }
-
-            var shReady = false
-            try {
-                java.nio.file.Files.createSymbolicLink(shLink.toPath(), shTarget.toPath())
-                shReady = shLink.exists()
-            } catch (_: Exception) {
-                shReady = false
-            }
-
-            if (!shReady) {
-                createShellWrapperScript(shLink, shTarget)
-            } else {
-                shLink.setExecutable(true, false)
-                shLink.setReadable(true, false)
-            }
+            setupLinkOrFallback(File(binDir, "sh"), shTarget)
         } catch (_: Exception) {}
     }
 
     private fun createShellWrapperScript(targetFile: File, shellTarget: File) {
         try {
+            try {
+                java.nio.file.Files.deleteIfExists(targetFile.toPath())
+            } catch (_: Exception) {
+                targetFile.delete()
+            }
             val script = """
                 #!/system/bin/sh
                 if [ -f "${shellTarget.absolutePath}" ] && [ -x "${shellTarget.absolutePath}" ]; then
