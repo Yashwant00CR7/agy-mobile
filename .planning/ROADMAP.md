@@ -43,3 +43,12 @@
   - **Goal:** Fix bash not found in `$PATH` on Android via self-healing links/wrappers, suppress stream close errors, provide conversation deletion in drawer, and surface command execution cards and engine debug logs.
   - **Requirements Addressed:** REQ-37, REQ-38, REQ-39, REQ-40, REQ-41, REQ-42.
   - **Success Criteria:** Agent runs commands like `ls` on device folders without bash errors, stream close errors vanish, conversations can be deleted cleanly from drawer, command cards and debug logs are visible, all tests pass, and APK compiles.
+
+### Milestone v1.9.0: Android Seccomp Resolution & Native Bionic Shell Migration
+*Goal:* Completely eliminate exit code 159 (SIGSYS / Bad System Call) on Android device directories by removing the static glibc libbash.so binary, migrating shell execution to Android's built-in Bionic /system/bin/sh (mksh/toybox), and verifying flawless command execution on device storage.
+
+#### Phases
+- [ ] **Phase 09: Android Seccomp Resolution & Native Bionic Shell Migration**
+  - **Goal:** Purge libbash.so, resolve primary shell to Android /system/bin/sh, symlink bin/bash to /system/bin/sh, update agent rules, update drawer diagnostics, and build lightweight APK.
+  - **Requirements Addressed:** REQ-43, REQ-44, REQ-45, REQ-46.
+  - **Success Criteria:** Agent executes commands like `ls` and `find` on device folders without exit code 159 (SIGSYS), tests pass, APK size reduces by ~2.4MB.

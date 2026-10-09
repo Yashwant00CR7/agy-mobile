@@ -76,3 +76,21 @@
 - [x] **REQ-42**: **Testing, Verification & Release Build v1.8.0**:
   - Add unit tests for `ConversationRepository` and `WorkspaceManager` deletion, and `BootstrapManager` self-healing links.
   - Run `./gradlew test` and compile `android/agy-mobile-debug.apk`.
+
+---
+
+## Milestone v1.9.0: Android Seccomp Resolution & Native Bionic Shell Migration
+
+- [ ] **REQ-43**: **Native Bionic Shell Resolution & Purge `libbash.so`**:
+  - Remove `android/app/src/main/jniLibs/arm64-v8a/libbash.so` from the project to eliminate the static glibc ELF binary that triggers Android seccomp filter `SIGSYS` (exit code 159).
+  - Update `BootstrapManager.kt` so `getShellExecutable()` resolves to Android's built-in `/system/bin/sh` (or `/bin/sh` on Unix/macOS) rather than looking for `libbash.so`.
+  - Re-link both `binDir/bash` and `binDir/sh` to the native `/system/bin/sh` executable.
+- [ ] **REQ-44**: **Android Environment & Rule Hardening**:
+  - Update `SHELL` environment variable to point to `/system/bin/sh`.
+  - Update runtime prompt rules (`system-android.md`, `android-runtime.md`) to reflect that the native shell is `/system/bin/sh` (mksh/toybox), fully callable as both `sh` and `bash`.
+- [ ] **REQ-45**: **Drawer Settings & Engine Diagnostics UI Update**:
+  - Update `ChatGptDrawer.kt` Engine & Shell Logs dialog and About section to display `/system/bin/sh (Android Bionic Shell)` instead of `libbash.so`.
+- [ ] **REQ-46**: **Test Suite, Code Review & Release APK Build**:
+  - Update `BootstrapManagerTest.kt` to verify `/system/bin/sh` and `/bin/sh` resolution.
+  - Run `./gradlew test` and verify 100% pass rate.
+  - Assemble release debug APK `android/agy-mobile-debug.apk` and verify APK size drops by ~2.4MB.
