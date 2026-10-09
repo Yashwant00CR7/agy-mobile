@@ -53,3 +53,26 @@
 - [x] **REQ-36**: **Unit Testing & Release Build Verification**:
   - Add unit tests for `WorkspaceManager` persistent workspace loading/saving and directory navigation.
   - Run `./gradlew test` and compile `android/agy-mobile-debug.apk`.
+
+---
+
+## Milestone v1.8.0: Shell Path Hardening, Cold-Start Optimization, Conversation Deletion & Command Inspector
+
+- [ ] **REQ-37**: **Native Bash Path Hardening & Self-Healing Links**:
+  - In `BootstrapManager`, always recreate fresh symlinks (`Files.deleteIfExists()` before `Files.createSymbolicLink()`) so `binDir/bash` and `binDir/sh` never remain dangling after APK updates when `nativeLibraryDir` path hash changes.
+  - Provide a dual-mode fallback: if symlink creation or execution fails, create a POSIX shell script wrapper in `binDir/bash` invoking `/system/bin/sh "$@"`.
+  - Ensure `$SHELL` and `$PATH` point to valid executables, avoiding `exec: "bash": executable file not found in $PATH`.
+- [ ] **REQ-38**: **Daemon Stream Resiliency & Cold-Start Fix**:
+  - In `AgyProcessEngine`, catch and suppress `IOException: Read interrupted by close() on another thread` during daemon restarts/shutdown so it is never displayed as a red user error banner.
+  - Keep the background `stream-json` process alive and warm across consecutive turns in the same conversation and workspace directory, eliminating repetitive 3-4s process startup overhead.
+- [ ] **REQ-39**: **Conversation Deletion with Confirmation & Multi-Store Cleanup**:
+  - In `ChatGptDrawer.kt`, add a delete action button (trash icon) to history items in the drawer list.
+  - Display an `AlertDialog` confirmation ("Delete Conversation? This will permanently delete this conversation and its logs.").
+  - Upon confirmation, delete the session from both `ConversationRepository` (`conversations/<id>.json`) and `WorkspaceManager` (`.gemini/brain/<id>`), refresh the conversation list, and reset the active chat screen if the deleted conversation is currently open.
+- [ ] **REQ-40**: **In-Chat Collapsible Command Execution Cards**:
+  - In `ChatScreen.kt` and `MessageItem.kt`, upgrade `MessageRole.TOOL` rendering to display an interactive command card showing tool name (`run_command`), the command line string, working directory, status (`Running`, `Success`, `Failed`), execution duration, and expandable stdout/stderr outputs with code syntax styling.
+- [ ] **REQ-41**: **Engine Process & Shell Debug Logs Viewer in Settings**:
+  - In `ChatGptDrawer.kt` Settings dialog, add an "Engine Logs & Shell Commands" viewer showing recent process execution history, environment variables, daemon status, and stdout/stderr output lines for real-time mobile debugging.
+- [ ] **REQ-42**: **Testing, Verification & Release Build v1.8.0**:
+  - Add unit tests for `ConversationRepository` and `WorkspaceManager` deletion, and `BootstrapManager` self-healing links.
+  - Run `./gradlew test` and compile `android/agy-mobile-debug.apk`.

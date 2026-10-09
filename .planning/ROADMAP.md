@@ -34,3 +34,12 @@
   - **Goal:** Build `DeviceFolderPickerModal`, enable persistent workspace saving and startup restoration in `WorkspaceManager` and `AgyViewModel`, add top bar workspace switching pill in `ChatGptTopBar`, and verify full device file interactions.
   - **Requirements Addressed:** REQ-32, REQ-33, REQ-34, REQ-35, REQ-36.
   - **Success Criteria:** User can browse and select any device folder from in-app modal, chosen folder persists across restarts, top bar and drawer allow fast switching, tests pass, and APK builds.
+
+### Milestone v1.8.0: Shell Path Hardening, Cold-Start Optimization, Conversation Deletion & Command Inspector
+*Goal:* Guarantee reliable bash execution on device folders with self-healing symlinks and system sh fallback, eliminate cold-start stream read errors, support full conversation deletion with confirmation, and display rich command cards and engine debug logs.
+
+#### Phases
+- [ ] **Phase 08: Shell Path Hardening, Cold-Start Optimization, Conversation Deletion & Command Inspector**
+  - **Goal:** Fix bash not found in `$PATH` on Android via self-healing links/wrappers, suppress stream close errors, provide conversation deletion in drawer, and surface command execution cards and engine debug logs.
+  - **Requirements Addressed:** REQ-37, REQ-38, REQ-39, REQ-40, REQ-41, REQ-42.
+  - **Success Criteria:** Agent runs commands like `ls` on device folders without bash errors, stream close errors vanish, conversations can be deleted cleanly from drawer, command cards and debug logs are visible, all tests pass, and APK compiles.
