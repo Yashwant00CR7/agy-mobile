@@ -552,11 +552,11 @@ fun ChatGptDrawer(
                         Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text("Active Engines:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             Text("• libagy.so (ARM64 Native Agent)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
-                            Text("• libbash.so (ARM64 Native Shell)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text("• /system/bin/sh (Android Bionic Shell)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                         }
                     }
                     Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)
-                    Text("Version: agy-mobile v1.8.0 (Mobile AI)", color = TextMuted, fontSize = 11.sp)
+                    Text("Version: agy-mobile v1.9.0 (Mobile AI)", color = TextMuted, fontSize = 11.sp)
 
                     OutlinedButton(
                         onClick = {
@@ -643,7 +643,7 @@ fun ChatGptDrawer(
                             ) {
                                 Text("Shell Target:", color = TextSecondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                                 Text(
-                                    "/system/bin/sh (fallback libbash.so)",
+                                    "/system/bin/sh (Android Bionic Shell)",
                                     color = EmeraldSuccess,
                                     fontSize = 10.sp,
                                     fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
@@ -677,7 +677,7 @@ fun ChatGptDrawer(
                                 val text = buildString {
                                     appendLine("=== AGY ENGINE & SHELL DIAGNOSTICS ===")
                                     appendLine("Workspace: ${workspaceInfo.currentPath}")
-                                    appendLine("Shell: /system/bin/sh & libbash.so")
+                                    appendLine("Shell: /system/bin/sh (Bionic Shell, linked as bash/sh)")
                                     appendLine("Logs Recorded: ${engineLogs.size}")
                                     appendLine("======================================")
                                     engineLogs.forEach {

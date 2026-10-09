@@ -196,12 +196,6 @@ class BootstrapManager(
     }
 
     fun getShellExecutable(): File {
-        if (nativeLibDir != null) {
-            val libBash = File(nativeLibDir, "libbash.so")
-            if (libBash.exists() && !libBash.isDirectory) {
-                return libBash
-            }
-        }
         val systemSh = File("/system/bin/sh")
         if (systemSh.exists() && !systemSh.isDirectory) {
             return systemSh
@@ -209,6 +203,10 @@ class BootstrapManager(
         val binSh = File("/bin/sh")
         if (binSh.exists() && !binSh.isDirectory) {
             return binSh
+        }
+        val usrBinSh = File("/usr/bin/sh")
+        if (usrBinSh.exists() && !usrBinSh.isDirectory) {
+            return usrBinSh
         }
         return File(binDir, "sh")
     }
@@ -241,8 +239,7 @@ class BootstrapManager(
         try {
             binDir.mkdirs()
             setupLinkOrFallback(File(binDir, "bash"), shell)
-            val shTarget = if (File("/system/bin/sh").exists()) File("/system/bin/sh") else shell
-            setupLinkOrFallback(File(binDir, "sh"), shTarget)
+            setupLinkOrFallback(File(binDir, "sh"), shell)
         } catch (_: Exception) {}
     }
 
@@ -280,34 +277,32 @@ class BootstrapManager(
                 # agy-mobile environment initialization
                 export SHELL="${'$'}{SHELL:-${shell.absolutePath}}"
 
-                # Wrapper function so invocations of 'bash' resolve cleanly to libbash.so
+                # Wrapper function so invocations of 'bash' resolve cleanly to native Bionic shell
                 bash() {
                     "${'$'}SHELL" "${'$'}@"
                 }
                 export -f bash 2>/dev/null || true
                 alias bash='"${'$'}SHELL"'
-                alias sh='/system/bin/sh'
+                alias sh='"${'$'}SHELL"'
             """.trimIndent()
             envFile.writeText(content)
             envFile.setReadable(true, false)
             envFile.setExecutable(true, false)
         } catch (_: Exception) {}
 
-        // Ensure rules directory and system-android rule (REQ-30)
+        // Ensure rules directory and system-android rule (REQ-30 / REQ-44)
         try {
             val rulesDir = File(geminiDir, "rules")
             rulesDir.mkdirs()
             val ruleContent = """
                 # Android Environment & Shell Execution Policy
-                - **Shell Execution**: You are running in an Android ARM64 native environment. The native shell is configured via `${'$'}SHELL` (${shell.name}).
-                - **Command Tooling**: When executing terminal or shell commands, ALWAYS call the official `run_command` tool. NEVER call a tool named `bash`, `sh`, or `execute_command` directly because those names are not callable in this runtime.
+                - **Shell Execution**: You are running in an Android ARM64 native environment. The native shell is Android's built-in Bionic shell (${shell.name} at ${shell.absolutePath}), also linked as `bash` and `sh`.
+                - **Command Tooling**: When executing terminal or shell commands, ALWAYS call the official `run_command` tool. Standard POSIX commands like `ls`, `cat`, `grep`, `find`, `mkdir`, `cp`, `mv`, `rm` are supported.
                 - **Environment**: Subshells and scripts inherit `${'$'}SHELL` and `${'$'}BASH_ENV`.
             """.trimIndent()
             for (ruleName in listOf("system-android.md", "android-runtime.md")) {
                 val ruleFile = File(rulesDir, ruleName)
-                if (!ruleFile.exists() || ruleFile.length() == 0L) {
-                    ruleFile.writeText(ruleContent)
-                }
+                ruleFile.writeText(ruleContent)
             }
         } catch (_: Exception) {}
     }

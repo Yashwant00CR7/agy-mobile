@@ -192,21 +192,15 @@ class BootstrapManagerTest {
     }
 
     @Test
-    fun testShellResolutionWithNativeLibBash() {
-        val root = tempFolder.newFolder("app_files_bash")
-        val nativeDir = tempFolder.newFolder("native_lib_bash")
-        val libBash = File(nativeDir, "libbash.so")
-        libBash.writeText("#!/bin/sh\necho bash")
-        libBash.setExecutable(true)
-
-        val manager = BootstrapManager(root, nativeDir)
+    fun testShellResolutionNativeBionic() {
+        val root = tempFolder.newFolder("app_files_bionic")
+        val manager = BootstrapManager(root)
         val shell = manager.getShellExecutable()
         assertNotNull(shell)
-        assertEquals("libbash.so", shell.name)
-        assertEquals(libBash.absolutePath, shell.absolutePath)
+        assertTrue(shell.name.contains("sh"))
 
         val env = manager.getEnvironmentVariables()
-        assertEquals(libBash.absolutePath, env["SHELL"])
+        assertEquals(shell.absolutePath, env["SHELL"])
     }
 
     @Test
@@ -215,7 +209,7 @@ class BootstrapManagerTest {
         val manager = BootstrapManager(root)
         val shell = manager.getShellExecutable()
         assertNotNull(shell)
-        assertTrue(shell.name.contains("sh") || shell.name.contains("bash"))
+        assertTrue(shell.name.contains("sh"))
 
         val env = manager.getEnvironmentVariables()
         assertTrue(env.containsKey("SHELL"))
@@ -225,27 +219,19 @@ class BootstrapManagerTest {
     @Test
     fun testShellSymlinksCreation() {
         val root = tempFolder.newFolder("app_files_symlinks")
-        val nativeDir = tempFolder.newFolder("native_lib_symlinks")
-        val libBash = File(nativeDir, "libbash.so")
-        libBash.writeText("#!/bin/sh\necho bash")
-        libBash.setExecutable(true)
-
-        val manager = BootstrapManager(root, nativeDir)
+        val manager = BootstrapManager(root)
         manager.initializeDirectories()
 
         val bashLink = File(manager.binDir, "bash")
         assertTrue(bashLink.exists())
+        val shLink = File(manager.binDir, "sh")
+        assertTrue(shLink.exists())
     }
 
     @Test
     fun testShellEnvironmentVariablesIncludeBashEnvAndEnv() {
         val root = tempFolder.newFolder("app_files_env")
-        val nativeDir = tempFolder.newFolder("native_lib_env")
-        val libBash = File(nativeDir, "libbash.so")
-        libBash.writeText("#!/bin/sh\necho bash")
-        libBash.setExecutable(true)
-
-        val manager = BootstrapManager(root, nativeDir)
+        val manager = BootstrapManager(root)
         manager.initializeDirectories()
 
         val env = manager.getEnvironmentVariables()
@@ -316,36 +302,22 @@ class BootstrapManagerTest {
     }
 
     @Test
-    fun testSelfHealingShellSymlinksAfterNativeLibMove() {
+    fun testSelfHealingShellSymlinks() {
         val root = tempFolder.newFolder("app_files_selfheal")
-        val oldNativeDir = tempFolder.newFolder("old_native_lib")
-        val oldLibBash = File(oldNativeDir, "libbash.so")
-        oldLibBash.writeText("#!/bin/sh\necho old_bash")
-        oldLibBash.setExecutable(true)
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
 
-        val managerOld = BootstrapManager(root, oldNativeDir)
-        managerOld.initializeDirectories()
-
-        val bashLink = File(managerOld.binDir, "bash")
+        val bashLink = File(manager.binDir, "bash")
         assertTrue(bashLink.exists())
 
-        // Simulate APK upgrade: old directory is deleted, new native lib dir is created with different path
-        oldLibBash.delete()
-        oldNativeDir.delete()
+        // Break the symlink by creating a dangling link pointing to non-existent target
+        try {
+            java.nio.file.Files.deleteIfExists(bashLink.toPath())
+            java.nio.file.Files.createSymbolicLink(bashLink.toPath(), File(root, "dangling_target").toPath())
+        } catch (_: Exception) {}
 
-        // bashLink is now dangling symlink
-        assertFalse(bashLink.exists())
-
-        val newNativeDir = tempFolder.newFolder("new_native_lib")
-        val newLibBash = File(newNativeDir, "libbash.so")
-        newLibBash.writeText("#!/bin/sh\necho new_bash")
-        newLibBash.setExecutable(true)
-
-        // Initialize new manager with new native dir (simulates new app startup)
-        val managerNew = BootstrapManager(root, newNativeDir)
-        managerNew.initializeDirectories()
-
-        // bashLink must be self-healed and exist
+        // Reinitialize directories - self-healing must restore a working bash link or script
+        manager.initializeDirectories()
         assertTrue(bashLink.exists())
     }
 
