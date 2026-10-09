@@ -39,7 +39,7 @@
 *Goal:* Guarantee reliable bash execution on device folders with self-healing symlinks and system sh fallback, eliminate cold-start stream read errors, support full conversation deletion with confirmation, and display rich command cards and engine debug logs.
 
 #### Phases
-- [ ] **Phase 08: Shell Path Hardening, Cold-Start Optimization, Conversation Deletion & Command Inspector**
+- [x] **Phase 08: Shell Path Hardening, Cold-Start Optimization, Conversation Deletion & Command Inspector** (Completed)
   - **Goal:** Fix bash not found in `$PATH` on Android via self-healing links/wrappers, suppress stream close errors, provide conversation deletion in drawer, and surface command execution cards and engine debug logs.
   - **Requirements Addressed:** REQ-37, REQ-38, REQ-39, REQ-40, REQ-41, REQ-42.
   - **Success Criteria:** Agent runs commands like `ls` on device folders without bash errors, stream close errors vanish, conversations can be deleted cleanly from drawer, command cards and debug logs are visible, all tests pass, and APK compiles.
