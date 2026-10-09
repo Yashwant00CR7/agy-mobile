@@ -57,7 +57,7 @@
 *Goal:* Enable users to tap file and folder links directly in the chat to open documents and images in default Android apps via FileProvider or switch into the referenced folder.
 
 #### Phases
-- [ ] **Phase 10: Interactive File & Directory Deep-Linking with FileProvider**
+- [x] **Phase 10: Interactive File & Directory Deep-Linking with FileProvider** (Completed)
   - **Goal:** Set up FileProvider in manifest, parse markdown links with URL-decoding, style clean inline links with icons, and dispatch directory switches and external app view intents.
   - **Requirements Addressed:** REQ-47, REQ-48, REQ-49, REQ-50, REQ-51.
   - **Success Criteria:** Tapping a directory link switches workspace with a toast; tapping an image/PDF/document link opens the default viewer via FileProvider; links render as clean labels with icons.
