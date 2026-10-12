@@ -597,6 +597,26 @@ fun ChatGptDrawer(
                             Text("Active Engines:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             Text("• libagy.so (ARM64 Native Agent)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                             Text("• $shellDescription", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Text("• git (Mobile Git Runtime & POSIX Shell)", color = TextPrimary, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                        }
+                    }
+
+                    // Dynamic Git Account Card
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Git Identity:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Text("Yashwant00CR7", color = EmeraldSuccess, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("10a19yashwant@gmail.com", color = TextSecondary, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                         }
                     }
                     Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)

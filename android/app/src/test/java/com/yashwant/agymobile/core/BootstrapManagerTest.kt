@@ -320,5 +320,25 @@ class BootstrapManagerTest {
         val bashFile = File(manager.binDir, "bash")
         assertTrue(bashFile.exists())
     }
+
+    @Test
+    fun testGitRuntimeInitialization() {
+        val root = tempFolder.newFolder("app_files_git")
+        val manager = BootstrapManager(root)
+        manager.initializeDirectories()
+
+        val gitFile = File(manager.binDir, "git")
+        assertTrue(gitFile.exists())
+        assertTrue(gitFile.canExecute())
+
+        val (name, email) = manager.getGitIdentity()
+        assertEquals("Yashwant00CR7", name)
+        assertEquals("10a19yashwant@gmail.com", email)
+
+        manager.setGitIdentity("WorkProfile", "work@example.com")
+        val (updatedName, updatedEmail) = manager.getGitIdentity()
+        assertEquals("WorkProfile", updatedName)
+        assertEquals("work@example.com", updatedEmail)
+    }
 }
 

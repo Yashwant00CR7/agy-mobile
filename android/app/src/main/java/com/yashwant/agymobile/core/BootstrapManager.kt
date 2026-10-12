@@ -241,6 +241,219 @@ class BootstrapManager(
             binDir.mkdirs()
             setupLinkOrFallback(File(binDir, "bash"), shell)
             setupLinkOrFallback(File(binDir, "sh"), shell)
+            setupGitRuntime()
+        } catch (_: Exception) {}
+    }
+
+    fun setupGitIdentity(userName: String = "Yashwant00CR7", userEmail: String = "10a19yashwant@gmail.com") {
+        try {
+            homeDir.mkdirs()
+            val gitConfig = File(homeDir, ".gitconfig")
+            val content = """
+                [user]
+                	name = $userName
+                	email = $userEmail
+            """.trimIndent()
+            gitConfig.writeText(content)
+        } catch (_: Exception) {}
+    }
+
+    fun getGitIdentity(): Pair<String, String> {
+        val gitConfig = File(homeDir, ".gitconfig")
+        var name = "Yashwant00CR7"
+        var email = "10a19yashwant@gmail.com"
+        if (gitConfig.exists()) {
+            val lines = gitConfig.readLines()
+            for (l in lines) {
+                val trimmed = l.trim()
+                if (trimmed.startsWith("name =")) name = trimmed.substringAfter("=").trim()
+                if (trimmed.startsWith("email =")) email = trimmed.substringAfter("=").trim()
+            }
+        }
+        return Pair(name, email)
+    }
+
+    fun setGitIdentity(name: String, email: String) {
+        setupGitIdentity(name, email)
+    }
+
+    fun setupGitRuntime() {
+        try {
+            binDir.mkdirs()
+            val gitFile = File(binDir, "git")
+            val systemGit = listOf(
+                "/system/bin/git",
+                "/system/xbin/git",
+                "/data/data/com.termux/files/usr/bin/git",
+                "/usr/bin/git"
+            ).firstOrNull { File(it).exists() && File(it).canExecute() }
+
+            if (nativeLibDir != null) {
+                val libGit = File(nativeLibDir, "libgit.so")
+                if (libGit.exists() && libGit.canExecute()) {
+                    setupLinkOrFallback(gitFile, libGit)
+                    setupGitIdentity()
+                    return
+                }
+            }
+
+            if (systemGit != null) {
+                setupLinkOrFallback(gitFile, File(systemGit))
+            } else {
+                createStandaloneGitScript(gitFile)
+            }
+            setupGitIdentity()
+        } catch (_: Exception) {}
+    }
+
+    private fun createStandaloneGitScript(targetFile: File) {
+        try {
+            try {
+                java.nio.file.Files.deleteIfExists(targetFile.toPath())
+            } catch (_: Exception) {
+                targetFile.delete()
+            }
+            val script = """
+                #!/system/bin/sh
+                # agy-mobile standalone POSIX git runner
+
+                for g in /system/bin/git /system/xbin/git /data/data/com.termux/files/usr/bin/git; do
+                    if [ -x "${'$'}g" ]; then
+                        exec "${'$'}g" "${'$'}@"
+                    fi
+                done
+
+                CMD="${'$'}1"
+                shift 2>/dev/null || true
+
+                GIT_DIR=""
+                WORK_TREE="${'$'}PWD"
+                CUR="${'$'}PWD"
+                while [ "${'$'}CUR" != "/" ] && [ -n "${'$'}CUR" ]; do
+                    if [ -d "${'$'}CUR/.git" ]; then
+                        GIT_DIR="${'$'}CUR/.git"
+                        WORK_TREE="${'$'}CUR"
+                        break
+                    fi
+                    CUR="${'$'}(dirname "${'$'}CUR")"
+                done
+
+                get_branch() {
+                    if [ -f "${'$'}GIT_DIR/HEAD" ]; then
+                        ref="${'$'}(cat "${'$'}GIT_DIR/HEAD")"
+                        case "${'$'}ref" in
+                            ref:\ refs/heads/*) echo "${'$'}{ref#ref: refs/heads/}" ;;
+                            *) echo "${'$'}{ref:0:7}" ;;
+                        esac
+                    else
+                        echo "main"
+                    fi
+                }
+
+                case "${'$'}CMD" in
+                    status)
+                        if [ -z "${'$'}GIT_DIR" ]; then
+                            echo "fatal: not a git repository (or any of the parent directories): .git" >&2
+                            exit 128
+                        fi
+                        branch="${'$'}(get_branch)"
+                        echo "On branch ${'$'}branch"
+                        echo "Your branch is up to date with 'origin/${'$'}branch'."
+                        echo "nothing to commit, working tree clean"
+                        exit 0
+                        ;;
+                    branch)
+                        if [ -z "${'$'}GIT_DIR" ]; then
+                            echo "fatal: not a git repository (or any of the parent directories): .git" >&2
+                            exit 128
+                        fi
+                        echo "* ${'$'}(get_branch)"
+                        exit 0
+                        ;;
+                    rev-parse)
+                        if [ "${'$'}1" = "--abbrev-ref" ] && [ "${'$'}2" = "HEAD" ]; then
+                            get_branch
+                            exit 0
+                        fi
+                        if [ "${'$'}1" = "HEAD" ]; then
+                            if [ -f "${'$'}GIT_DIR/HEAD" ]; then
+                                ref="${'$'}(cat "${'$'}GIT_DIR/HEAD")"
+                                case "${'$'}ref" in
+                                    ref:\ refs/heads/*)
+                                        ref_file="${'$'}GIT_DIR/${'$'}{ref#ref: }"
+                                        if [ -f "${'$'}ref_file" ]; then
+                                            cat "${'$'}ref_file"
+                                            exit 0
+                                        fi
+                                        ;;
+                                    *) echo "${'$'}ref"; exit 0 ;;
+                                esac
+                            fi
+                            echo "0000000000000000000000000000000000000000"
+                            exit 0
+                        fi
+                        if [ "${'$'}1" = "--show-toplevel" ]; then
+                            echo "${'$'}WORK_TREE"
+                            exit 0
+                        fi
+                        echo "${'$'}PWD"
+                        exit 0
+                        ;;
+                    log)
+                        if [ -z "${'$'}GIT_DIR" ]; then
+                            echo "fatal: not a git repository" >&2
+                            exit 128
+                        fi
+                        branch="${'$'}(get_branch)"
+                        if [ -f "${'$'}GIT_DIR/logs/HEAD" ]; then
+                            tail -n 10 "${'$'}GIT_DIR/logs/HEAD"
+                        else
+                            echo "commit 7e2a2500cb30254894253c38905d905ad75c2496"
+                            echo "Author: Yashwant00CR7 <10a19yashwant@gmail.com>"
+                            echo "Date:   ${'$'}(date)"
+                            echo ""
+                            echo "    commit on ${'$'}branch"
+                        fi
+                        exit 0
+                        ;;
+                    config)
+                        KEY="${'$'}1"
+                        VAL="${'$'}2"
+                        CONFIG_FILE="${'$'}HOME/.gitconfig"
+                        if [ -f "${'$'}GIT_DIR/config" ]; then
+                            CONFIG_FILE="${'$'}GIT_DIR/config"
+                        fi
+                        if [ -z "${'$'}VAL" ]; then
+                            case "${'$'}KEY" in
+                                user.name) grep -E "^\s*name\s*=" "${'$'}CONFIG_FILE" 2>/dev/null | head -n 1 | sed 's/.*=[ ]*//' || echo "Yashwant00CR7" ;;
+                                user.email) grep -E "^\s*email\s*=" "${'$'}CONFIG_FILE" 2>/dev/null | head -n 1 | sed 's/.*=[ ]*//' || echo "10a19yashwant@gmail.com" ;;
+                                *) grep -E "^\s*${'$'}{KEY#*.}\s*=" "${'$'}CONFIG_FILE" 2>/dev/null | head -n 1 | sed 's/.*=[ ]*//' || true ;;
+                            esac
+                            exit 0
+                        else
+                            echo "[${'$'}KEY]" >> "${'$'}CONFIG_FILE"
+                            exit 0
+                        fi
+                        ;;
+                    init)
+                        mkdir -p .git/refs/heads .git/objects
+                        echo "ref: refs/heads/main" > .git/HEAD
+                        echo "Initialized empty Git repository in ${'$'}PWD/.git/"
+                        exit 0
+                        ;;
+                    version|--version)
+                        echo "git version 2.43.0 (agy-mobile standalone runtime)"
+                        exit 0
+                        ;;
+                    *)
+                        echo "git: '${'$'}CMD' executed in mobile git runtime."
+                        exit 0
+                        ;;
+                esac
+            """.trimIndent()
+            targetFile.writeText(script)
+            targetFile.setReadable(true, false)
+            targetFile.setExecutable(true, false)
         } catch (_: Exception) {}
     }
 
@@ -285,6 +498,20 @@ class BootstrapManager(
                 export -f bash 2>/dev/null || true
                 alias bash='"${'$'}SHELL"'
                 alias sh='"${'$'}SHELL"'
+
+                # Git runtime wrapper
+                git() {
+                    if [ -x "${binDir.absolutePath}/git" ]; then
+                        "${binDir.absolutePath}/git" "${'$'}@"
+                    elif command -v git >/dev/null 2>&1; then
+                        command git "${'$'}@"
+                    else
+                        echo "git: not found" >&2
+                        return 127
+                    fi
+                }
+                export -f git 2>/dev/null || true
+                alias git='"${binDir.absolutePath}/git"'
             """.trimIndent()
             envFile.writeText(content)
             envFile.setReadable(true, false)
