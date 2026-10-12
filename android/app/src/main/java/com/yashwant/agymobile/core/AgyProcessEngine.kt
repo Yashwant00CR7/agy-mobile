@@ -202,9 +202,12 @@ class AgyProcessEngine(
                     return AgyEvent.Error(err)
                 }
                 val summary = if (res.has("response")) res.getString("response") else if (res.has("status")) res.getString("status") else null
+                val usageObj = res.optJSONObject("usage") ?: json.optJSONObject("usage")
+                val promptTokens = usageObj?.let { it.optLong("prompt_tokens", it.optLong("input_tokens", -1L)) }?.takeIf { it >= 0 }
+                val compTokens = usageObj?.let { it.optLong("completion_tokens", it.optLong("output_tokens", -1L)) }?.takeIf { it >= 0 }
                 turnCompleteEmitted = true
                 log("Engine", "Turn complete for $activeConversationId", LogLevel.INFO)
-                return AgyEvent.TurnComplete(activeConversationId, summary)
+                return AgyEvent.TurnComplete(activeConversationId, summary, promptTokens, compTokens)
             }
 
             // Mock / fallback NDJSON schemas
@@ -260,7 +263,10 @@ class AgyProcessEngine(
 
             if (type == "turn_complete" || json.optBoolean("done", false)) {
                 val summary = if (json.has("summary")) json.getString("summary") else null
-                return AgyEvent.TurnComplete(activeConversationId, summary)
+                val usageObj = json.optJSONObject("usage")
+                val promptTokens = usageObj?.let { it.optLong("prompt_tokens", it.optLong("input_tokens", -1L)) }?.takeIf { it >= 0 }
+                val compTokens = usageObj?.let { it.optLong("completion_tokens", it.optLong("output_tokens", -1L)) }?.takeIf { it >= 0 }
+                return AgyEvent.TurnComplete(activeConversationId, summary, promptTokens, compTokens)
             }
 
             if (json.has("content")) {

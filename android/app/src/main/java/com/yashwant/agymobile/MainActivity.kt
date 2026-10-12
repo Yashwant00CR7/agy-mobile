@@ -91,6 +91,7 @@ class MainActivity : ComponentActivity() {
                 val selectedModel by viewModel.selectedModel.collectAsState()
                 val selectedEffort by viewModel.selectedEffort.collectAsState()
                 val engineLogs by viewModel.engineLogs.collectAsState()
+                val usageMetrics by viewModel.usageMetrics.collectAsState()
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
@@ -158,7 +159,10 @@ class MainActivity : ComponentActivity() {
                             onOpenHomeScreenStudio = {
                                 closeDrawer()
                                 showHomeScreenStudio = true
-                            }
+                            },
+                            usageMetrics = usageMetrics,
+                            onResetDailyUsage = { viewModel.resetDailyUsage() },
+                            onSetDailyQuota = { quota -> viewModel.setDailyQuota(quota) }
                         )
                     }
                 ) {

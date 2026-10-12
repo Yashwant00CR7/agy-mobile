@@ -19,12 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yashwant.agymobile.core.ConversationItem
 import com.yashwant.agymobile.core.DeviceShortcut
+import com.yashwant.agymobile.core.UsageMetrics
 import com.yashwant.agymobile.core.WorkspaceInfo
 import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.model.AuthState
@@ -51,6 +53,9 @@ fun ChatGptDrawer(
     onClearEngineLogs: () -> Unit = {},
     shellDescription: String = "/system/bin/sh (Android Bionic Shell)",
     onOpenHomeScreenStudio: () -> Unit = {},
+    usageMetrics: UsageMetrics = UsageMetrics(),
+    onResetDailyUsage: () -> Unit = {},
+    onSetDailyQuota: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -59,6 +64,7 @@ fun ChatGptDrawer(
     var showNewProjectDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showEngineLogsDialog by remember { mutableStateOf(false) }
+    var showUsageBreakdownDialog by remember { mutableStateOf(false) }
     var conversationPendingDelete by remember { mutableStateOf<ConversationItem?>(null) }
 
     ModalDrawerSheet(
@@ -446,6 +452,96 @@ fun ChatGptDrawer(
                 }
             }
 
+            // 4.5 Sleek Credits & Token Usage Card
+            Surface(
+                onClick = { showUsageBreakdownDialog = true },
+                color = AntigravitySurface,
+                shape = RoundedCornerShape(10.dp),
+                border = androidx.compose.foundation.BorderStroke(0.5.dp, AntigravityBorder),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = AntigravityCyan,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Token Quota",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Surface(
+                            color = AntigravityCyan.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = usageMetrics.tierLabel,
+                                color = AntigravityCyan,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    // Progress Gauge
+                    val percent = usageMetrics.dailyUsagePercent
+                    val gaugeColor = when {
+                        percent >= 0.9f -> CrimsonDanger
+                        percent >= 0.7f -> AmberWarning
+                        else -> EmeraldSuccess
+                    }
+
+                    LinearProgressIndicator(
+                        progress = { percent },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = gaugeColor,
+                        trackColor = AntigravityBorder
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${String.format("%,d", usageMetrics.dailyTotalTokens)} / ${String.format("%,d", usageMetrics.dailyQuotaTokens)}",
+                            color = TextSecondary,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "${String.format("%.1f", percent * 100)}%",
+                            color = gaugeColor,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+            }
+
             // 5. Bottom Account & Auth Row
             Box(
                 modifier = Modifier
@@ -640,6 +736,25 @@ fun ChatGptDrawer(
                     OutlinedButton(
                         onClick = {
                             showSettingsDialog = false
+                            showUsageBreakdownDialog = true
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AntigravityCyan),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityCyan.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Credits & Token Breakdown (${String.format("%.1f", usageMetrics.dailyUsagePercent * 100)}%)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showSettingsDialog = false
                             onOpenHomeScreenStudio()
                             onCloseDrawer()
                         },
@@ -657,6 +772,212 @@ fun ChatGptDrawer(
             confirmButton = {
                 TextButton(onClick = { showSettingsDialog = false }) {
                     Text("Done", color = AntigravityBlue)
+                }
+            },
+            containerColor = AntigravitySurface,
+            textContentColor = TextPrimary
+        )
+    }
+
+    if (showUsageBreakdownDialog) {
+        AlertDialog(
+            onDismissRequest = { showUsageBreakdownDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Bolt, contentDescription = null, tint = AntigravityCyan, modifier = Modifier.size(20.dp))
+                    Text("Credits & Quota Breakdown", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Gauge Card
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, AntigravityBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Daily Consumption", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Surface(
+                                    color = AntigravityCyan.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = usageMetrics.tierLabel,
+                                        color = AntigravityCyan,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            val percent = usageMetrics.dailyUsagePercent
+                            val gaugeColor = when {
+                                percent >= 0.9f -> CrimsonDanger
+                                percent >= 0.7f -> AmberWarning
+                                else -> EmeraldSuccess
+                            }
+
+                            LinearProgressIndicator(
+                                progress = { percent },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = gaugeColor,
+                                trackColor = AntigravityBorder
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${String.format("%,d", usageMetrics.dailyTotalTokens)} / ${String.format("%,d", usageMetrics.dailyQuotaTokens)} tokens",
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "${String.format("%.1f", percent * 100)}%",
+                                    color = gaugeColor,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Detailed Token Metrics Grid
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("TOKEN METRICS", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                color = AntigravityDarkBg,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text("Prompt (Input)", color = TextMuted, fontSize = 10.sp)
+                                    Text(
+                                        String.format("%,d", usageMetrics.dailyPromptTokens),
+                                        color = AntigravityBlue,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                            Surface(
+                                color = AntigravityDarkBg,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text("Completion (Output)", color = TextMuted, fontSize = 10.sp)
+                                    Text(
+                                        String.format("%,d", usageMetrics.dailyCompletionTokens),
+                                        color = EmeraldSuccess,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Surface(
+                                color = AntigravityDarkBg,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text("Remaining Today", color = TextMuted, fontSize = 10.sp)
+                                    Text(
+                                        String.format("%,d", usageMetrics.remainingDailyTokens),
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                            Surface(
+                                color = AntigravityDarkBg,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Column(modifier = Modifier.padding(8.dp)) {
+                                    Text("Total Turns", color = TextMuted, fontSize = 10.sp)
+                                    Text(
+                                        usageMetrics.totalTurns.toString(),
+                                        color = TextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Model Consumption Breakdown
+                    if (usageMetrics.modelBreakdown.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("CONSUMPTION BY MODEL", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            usageMetrics.modelBreakdown.forEach { (model, tokens) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(model, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                                    Text(
+                                        "${String.format("%,d", tokens)} tok",
+                                        color = TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Reset Controls
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onResetDailyUsage,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Reset Today", fontSize = 11.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showUsageBreakdownDialog = false }) {
+                    Text("Close", color = AntigravityBlue)
                 }
             },
             containerColor = AntigravitySurface,

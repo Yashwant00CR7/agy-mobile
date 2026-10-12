@@ -35,6 +35,12 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
 
     val conversationRepository = com.yashwant.agymobile.core.ConversationRepository(application.filesDir)
 
+    val usageCreditsManager = com.yashwant.agymobile.core.UsageCreditsManager(application.filesDir)
+    private val _usageMetrics = MutableStateFlow(usageCreditsManager.getMetrics())
+    val usageMetrics: StateFlow<com.yashwant.agymobile.core.UsageMetrics> = _usageMetrics.asStateFlow()
+
+    private var lastUserPromptText: String = ""
+
     val availableModels = listOf(
         "Gemini 3.8 Flash (Medium)",
         "Gemini 3.8 Flash (High)",
@@ -342,6 +348,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             activeConversationId = java.util.UUID.randomUUID().toString()
         }
 
+        lastUserPromptText = text
         _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
         _promptText.value = ""
         _isRunning.value = true
@@ -487,6 +494,15 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                 if (!event.conversationId.isNullOrBlank()) {
                     activeConversationId = event.conversationId
                 }
+                val assistantText = _messages.value.lastOrNull { it.role == MessageRole.ASSISTANT }?.content ?: ""
+                usageCreditsManager.recordTurn(
+                    promptText = lastUserPromptText,
+                    completionText = assistantText,
+                    model = _selectedModel.value,
+                    exactPromptTokens = event.promptTokens,
+                    exactCompletionTokens = event.completionTokens
+                )
+                _usageMetrics.value = usageCreditsManager.getMetrics()
                 saveCurrentSession()
             }
             is AgyEvent.Error -> {
@@ -505,6 +521,25 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             }
             else -> {}
         }
+    }
+
+    fun refreshUsageMetrics() {
+        _usageMetrics.value = usageCreditsManager.getMetrics()
+    }
+
+    fun resetDailyUsage() {
+        usageCreditsManager.resetDailyUsage()
+        _usageMetrics.value = usageCreditsManager.getMetrics()
+    }
+
+    fun setDailyQuota(quota: Long) {
+        usageCreditsManager.setDailyQuota(quota)
+        _usageMetrics.value = usageCreditsManager.getMetrics()
+    }
+
+    fun resetAllUsage() {
+        usageCreditsManager.resetAllMetrics()
+        _usageMetrics.value = usageCreditsManager.getMetrics()
     }
 
     fun cancel(service: AgyAgentService? = null) {

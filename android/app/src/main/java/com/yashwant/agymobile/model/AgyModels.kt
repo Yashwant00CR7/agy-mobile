@@ -79,6 +79,8 @@ sealed class AgyEvent {
     data class TurnComplete(
         val conversationId: String?,
         val summary: String?,
+        val promptTokens: Long? = null,
+        val completionTokens: Long? = null,
         val timestamp: Long = System.currentTimeMillis()
     ) : AgyEvent()
     data class Status(
