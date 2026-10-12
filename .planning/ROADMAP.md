@@ -61,3 +61,12 @@
   - **Goal:** Set up FileProvider in manifest, parse markdown links with URL-decoding, style clean inline links with icons, and dispatch directory switches and external app view intents.
   - **Requirements Addressed:** REQ-47, REQ-48, REQ-49, REQ-50, REQ-51.
   - **Success Criteria:** Tapping a directory link switches workspace with a toast; tapping an image/PDF/document link opens the default viewer via FileProvider; links render as clean labels with icons.
+
+### Milestone v2.1.0: Home Screen Customization & Widget Studio
+*Goal:* Enable users to customize their phone's home screen by designing & pinning custom app and action shortcuts, as well as configuring, previewing, and pinning native Android widgets (Quick AI Prompt Pill, Quick Actions Grid, Workspace & Device Status Card) directly to their existing system launcher.
+
+#### Phases
+- [ ] **Phase 11: Home Screen Customization & Widget Studio**
+  - **Goal:** Build dynamic shortcut generator with custom shapes & icons, build 3 native AppWidgets, create in-app Home Screen Studio & Widget Reshaper modal, and wire drawer/composer entry points.
+  - **Requirements Addressed:** REQ-52, REQ-53, REQ-54, REQ-55, REQ-56.
+  - **Success Criteria:** User can visually design custom shortcuts, preview reshaped widgets, pin them to their home screen via Android ShortcutManager and AppWidgetManager, all tests pass, and APK builds.

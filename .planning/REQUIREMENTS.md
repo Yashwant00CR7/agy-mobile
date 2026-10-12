@@ -118,3 +118,29 @@
 - [x] **REQ-51**: **Unit Testing, Code Review & Release APK Build**:
   - Add unit tests for `MarkdownLinkParser` and URL-decoding in `MarkdownLinkParserTest.kt`.
   - Run `./gradlew test` and assemble `android/agy-mobile-debug.apk`.
+
+---
+
+## Milestone v2.1.0: Home Screen Customization & Widget Studio
+
+- [ ] **REQ-52**: **Dynamic Shortcut Creator & Bitmap Icon Generator**:
+  - Implement `ShortcutIconGenerator.kt` to dynamically draw custom styled app icons into Bitmaps (shapes: Circle, Squircle, Rounded Square; customizable background colors, border rings, and icon/emoji centerpieces).
+  - Implement `HomeScreenShortcutManager.kt` to wrap Android `ShortcutManager.requestPinShortcut()` with dynamic intent mapping (launch installed apps or trigger agy actions like new chat or folder workspace).
+- [ ] **REQ-53**: **Native AppWidget Architecture & XML Providers**:
+  - Create and register 3 native Android AppWidgets:
+    1. `AgyPromptWidgetReceiver`: Quick AI Prompt Pill (one-tap voice or text query into agy-mobile).
+    2. `AgyActionsWidgetReceiver`: Quick Actions Bar (customizable multi-action grid for phone tools and AI triggers).
+    3. `AgyStatusWidgetReceiver`: Workspace & Device Status Card (live workspace path, git branch, and quick chat launch).
+  - Provide XML metadata and RemoteViews layouts with high-contrast Dark & Neon aesthetics.
+  - Implement `HomeScreenWidgetManager.kt` supporting `AppWidgetManager.requestPinAppWidget()`.
+- [ ] **REQ-54**: **In-App Home Screen Studio & Widget Reshaper UI**:
+  - Create `HomeScreenStudioModal.kt` with two tabs:
+    - *Shortcuts Tab*: Pick app/action, select shape (Circle, Squircle, Rounded Square), select accent color, enter label, preview live, and tap "Pin to Home Screen".
+    - *Widgets Tab*: Choose widget type, preview reshaped layouts (Pill vs Grid vs Status Card), select theme tint, and tap "Pin Widget to Home Screen".
+- [ ] **REQ-55**: **Dual Entry Points & Assistant Integration**:
+  - Add "Home Screen & Widgets" item in `ChatGptDrawer.kt`.
+  - Add "Pin to Home Screen" action in `ChatGptComposer.kt` '+' attachment menu.
+  - Connect state management in `AgyViewModel.kt` and `MainActivity.kt`.
+- [ ] **REQ-56**: **Test Suite, Code Review & Release APK Build**:
+  - Write unit tests for `ShortcutIconGeneratorTest.kt` verifying shape clipping, dimensions, and shortcut info generation.
+  - Run `./gradlew test` and assemble `android/agy-mobile-debug.apk`.
