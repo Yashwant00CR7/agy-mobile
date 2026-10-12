@@ -715,8 +715,62 @@ fun ChatGptDrawer(
                             Text("10a19yashwant@gmail.com", color = TextSecondary, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                         }
                     }
+                    // Remote Control & Accessibility Card
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val isAccessibilityActive = remember(showSettingsDialog) {
+                        com.yashwant.agymobile.service.AgyAccessibilityService.isServiceActive() ||
+                                com.yashwant.agymobile.service.AgyAccessibilityService.isAccessibilityServiceEnabled(context)
+                    }
+
+                    Surface(
+                        color = AntigravityDarkBg,
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Remote Control & Gestures:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Surface(
+                                    color = if (isAccessibilityActive) EmeraldSuccess.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = if (isAccessibilityActive) "Active" else "Disabled",
+                                        color = if (isAccessibilityActive) EmeraldSuccess else AmberWarning,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = if (isAccessibilityActive) {
+                                    "Ready to execute clicks, scrolls, typing, and screen reading."
+                                } else {
+                                    "Enable Antigravity in Accessibility Settings to allow phone automation."
+                                },
+                                color = TextSecondary,
+                                fontSize = 10.sp
+                            )
+                            if (!isAccessibilityActive) {
+                                TextButton(
+                                    onClick = {
+                                        com.yashwant.agymobile.service.AgyAccessibilityService.openAccessibilitySettings(context)
+                                    },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    Text("Open Accessibility Settings →", color = AntigravityBlue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+
                     Text("Workspace: ${File(workspaceInfo.currentPath).name.ifBlank { "Default" }}", color = TextSecondary, fontSize = 12.sp)
-                    Text("Version: agy-mobile v1.9.0 (Mobile AI)", color = TextMuted, fontSize = 11.sp)
+                    Text("Version: agy-mobile v2.2.0 (Mobile AI)", color = TextMuted, fontSize = 11.sp)
 
                     OutlinedButton(
                         onClick = {

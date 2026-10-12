@@ -6,4 +6,5 @@
     <string name="widget_actions_desc">One-tap tools and shortcuts for Antigravity actions</string>
     <string name="widget_status_title">Workspace &amp; Status</string>
     <string name="widget_status_desc">Active mobile workspace folder and engine status card</string>
+    <string name="accessibility_service_description">Enables Antigravity mobile agent to perform remote control automation, screen reading, and navigational gestures on your device with safety guardrails.</string>
 </resources>
