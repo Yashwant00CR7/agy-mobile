@@ -423,6 +423,24 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     toolStatus = "RUNNING"
                 )
             }
+            is AgyEvent.ToolOutputChunk -> {
+                val current = _messages.value
+                val existingIdx = if (event.id.isNotBlank()) {
+                    current.indexOfLast { it.toolCallId == event.id }
+                } else {
+                    current.indexOfLast { it.role == MessageRole.TOOL && it.toolStatus == "RUNNING" }
+                }
+                if (existingIdx != -1) {
+                    val existing = current[existingIdx]
+                    val updatedOut = (existing.toolOutput ?: "") + (event.stdoutChunk ?: "")
+                    val updatedErr = (existing.toolError ?: "") + (event.stderrChunk ?: "")
+                    val updated = existing.copy(
+                        toolOutput = updatedOut.ifEmpty { null },
+                        toolError = updatedErr.ifEmpty { null }
+                    )
+                    _messages.value = current.toMutableList().apply { set(existingIdx, updated) }
+                }
+            }
             is AgyEvent.ToolResult -> {
                 val current = _messages.value
                 val existingIdx = current.indexOfLast { it.toolCallId == event.id }

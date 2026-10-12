@@ -165,6 +165,15 @@ class AgyProcessEngine(
                     return AgyEvent.ToolCall(id, name, argsJson)
                 }
 
+                if (step.has("tool_output_chunk") || step.has("stdout_delta") || step.has("stderr_delta") || step.has("tool_delta")) {
+                    val id = step.optString("id", step.optString("call_id", ""))
+                    val stdout = step.optString("stdout_delta", step.optString("tool_output_chunk", step.optString("stdout", "")))
+                    val stderr = step.optString("stderr_delta", step.optString("stderr", ""))
+                    if (stdout.isNotEmpty() || stderr.isNotEmpty()) {
+                        return AgyEvent.ToolOutputChunk(id, stdout.ifEmpty { null }, stderr.ifEmpty { null })
+                    }
+                }
+
                 if (step.has("tool_result") || step.optString("step_type") == "tool_result") {
                     val res = if (step.has("tool_result")) step.getJSONObject("tool_result") else step
                     val id = res.optString("id", "")
@@ -223,6 +232,15 @@ class AgyProcessEngine(
                 }
 
                 return AgyEvent.ToolCall(id, name, argsJson)
+            }
+
+            if (type == "tool_output_chunk" || type == "tool_stream" || json.has("stdout_delta") || json.has("stderr_delta")) {
+                val id = json.optString("id", json.optString("call_id", ""))
+                val stdout = json.optString("stdout_delta", json.optString("tool_output_chunk", json.optString("stdout", "")))
+                val stderr = json.optString("stderr_delta", json.optString("stderr", ""))
+                if (stdout.isNotEmpty() || stderr.isNotEmpty()) {
+                    return AgyEvent.ToolOutputChunk(id, stdout.ifEmpty { null }, stderr.ifEmpty { null })
+                }
             }
 
             if (type == "tool_result" || json.has("tool_result")) {

@@ -69,6 +69,12 @@ sealed class AgyEvent {
         val error: String?,
         val timestamp: Long = System.currentTimeMillis()
     ) : AgyEvent()
+    data class ToolOutputChunk(
+        val id: String,
+        val stdoutChunk: String? = null,
+        val stderrChunk: String? = null,
+        val timestamp: Long = System.currentTimeMillis()
+    ) : AgyEvent()
     data class Diff(val file: String, val diff: String, val timestamp: Long = System.currentTimeMillis()) : AgyEvent()
     data class TurnComplete(
         val conversationId: String?,

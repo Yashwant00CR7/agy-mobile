@@ -2,6 +2,7 @@ package com.yashwant.agymobile.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
@@ -12,17 +13,22 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -34,7 +40,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.yashwant.agymobile.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import org.json.JSONObject
 
 @Composable
@@ -45,12 +55,25 @@ fun ToolCallCard(
     error: String? = null,
     status: String? = null,
     durationMs: Long? = null,
+    onCancelCommand: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
-    var copiedCommand by remember { mutableStateOf(false) }
+    var copiedTerminal by remember { mutableStateOf(false) }
+    var showFullscreenModal by remember { mutableStateOf(false) }
+
+    val effectiveStatus = when {
+        status == "ERROR" || error != null -> "ERROR"
+        status == "SUCCESS" || output != null -> "SUCCESS"
+        status == "RUNNING" -> "RUNNING"
+        else -> "RUNNING"
+    }
+
+    // Auto-expand when command is executing
+    var isExpanded by remember(effectiveStatus) {
+        mutableStateOf(effectiveStatus == "RUNNING" || status != null)
+    }
 
     val parsedArgs = remember(argsJson) {
         try { JSONObject(argsJson) } catch (_: Exception) { null }
@@ -79,13 +102,6 @@ fun ToolCallCard(
             ?: parsedArgs?.optString("toolSummary", "")?.ifBlank { null }
     }
 
-    val effectiveStatus = when {
-        status == "ERROR" || error != null -> "ERROR"
-        status == "SUCCESS" || output != null -> "SUCCESS"
-        status == "RUNNING" -> "RUNNING"
-        else -> "RUNNING"
-    }
-
     val statusColor = when (effectiveStatus) {
         "ERROR" -> CrimsonDanger
         "SUCCESS" -> EmeraldSuccess
@@ -101,6 +117,51 @@ fun ToolCallCard(
         targetFile != null -> "$toolName: ${java.io.File(targetFile).name}"
         toolAction != null -> "$toolAction ($toolName)"
         else -> "Tool: $toolName"
+    }
+
+    // Live execution duration ticker
+    var liveElapsedMs by remember(effectiveStatus, durationMs) {
+        mutableStateOf(durationMs ?: 0L)
+    }
+    LaunchedEffect(effectiveStatus) {
+        if (effectiveStatus == "RUNNING") {
+            val startTime = System.currentTimeMillis() - liveElapsedMs
+            while (isActive) {
+                liveElapsedMs = System.currentTimeMillis() - startTime
+                delay(100L)
+            }
+        }
+    }
+
+    // Pulsing indicator for active execution
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(650, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
+    val combinedLogText = remember(commandLine, output, error) {
+        buildString {
+            if (commandLine != null) {
+                append("$ ").append(commandLine).append("\n\n")
+            }
+            if (!output.isNullOrBlank()) {
+                append(output.trimEnd())
+            }
+            if (!error.isNullOrBlank()) {
+                if (isNotEmpty()) append("\n\n[STDERR]\n")
+                append(error.trimEnd())
+            }
+        }
+    }
+
+    val lineCount = remember(combinedLogText) {
+        if (combinedLogText.isBlank()) 0 else combinedLogText.lines().size
     }
 
     Column(
@@ -173,28 +234,78 @@ fun ToolCallCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Status Badge
+                    // Status Badge with Pulsing indicator if running
                     Surface(
                         color = statusColor.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(6.dp)
                     ) {
-                        Text(
-                            text = effectiveStatus,
-                            color = statusColor,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
+                        ) {
+                            if (effectiveStatus == "RUNNING") {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(AmberWarning)
+                                        .alpha(pulseAlpha)
+                                )
+                            }
+                            Text(
+                                text = effectiveStatus,
+                                color = statusColor,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
-                    // Duration (if available)
-                    if (durationMs != null && durationMs > 0) {
+                    // Live Ticking Duration Timer
+                    val displayTime = if (effectiveStatus == "RUNNING") liveElapsedMs else (durationMs ?: liveElapsedMs)
+                    if (displayTime > 0) {
                         Text(
-                            text = if (durationMs >= 1000) "${String.format("%.1f", durationMs / 1000.0)}s" else "${durationMs}ms",
-                            color = TextMuted,
+                            text = if (effectiveStatus == "RUNNING") {
+                                "Running ${String.format("%.1f", displayTime / 1000.0)}s..."
+                            } else if (displayTime >= 1000) {
+                                "${String.format("%.1f", displayTime / 1000.0)}s"
+                            } else {
+                                "${displayTime}ms"
+                            },
+                            color = if (effectiveStatus == "RUNNING") AmberWarning else TextMuted,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace
                         )
+                    }
+
+                    // Stop / Cancel Button (Visible when command is running)
+                    if (effectiveStatus == "RUNNING" && onCancelCommand != null) {
+                        Surface(
+                            onClick = onCancelCommand,
+                            color = CrimsonDanger.copy(alpha = 0.18f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = androidx.compose.foundation.BorderStroke(0.5.dp, CrimsonDanger.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Stop,
+                                    contentDescription = "Stop command",
+                                    tint = CrimsonDanger,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Text(
+                                    text = "Stop",
+                                    color = CrimsonDanger,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
 
                     Icon(
@@ -207,7 +318,7 @@ fun ToolCallCard(
             }
         }
 
-        // 2. Expanded Terminal Body & Output Inspector
+        // 2. Expanded Terminal Body & Real-Time Streaming HUD
         AnimatedVisibility(
             visible = isExpanded,
             enter = expandVertically(),
@@ -218,66 +329,88 @@ fun ToolCallCard(
                     .fillMaxWidth()
                     .padding(top = 6.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(AntigravityDarkBg)
+                    .background(Color(0xFF0D1117))
                     .border(0.5.dp, AntigravityBorder, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Command Line Block (if present)
                 if (commandLine != null) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            // Terminal window fake dots
+                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
+                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
+                            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(Color(0xFF27C93F)))
+                            Spacer(modifier = Modifier.width(2.dp))
                             Text(
-                                text = "COMMAND",
+                                text = "BIONIC TERMINAL HUD",
                                 color = TextMuted,
-                                fontSize = 10.sp,
+                                fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp
                             )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (lineCount > 0) {
+                                Surface(
+                                    color = AntigravitySurface,
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        text = "$lineCount lines",
+                                        color = TextMuted,
+                                        fontSize = 9.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+
+                            // Fullscreen Expand Action
+                            Icon(
+                                imageVector = Icons.Default.Fullscreen,
+                                contentDescription = "Expand Fullscreen",
+                                tint = TextSecondary,
+                                modifier = Modifier
+                                    .size(15.dp)
+                                    .clickable { showFullscreenModal = true }
+                            )
+
+                            // Copy Action
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
                                 modifier = Modifier.clickable {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    clipboardManager.setText(AnnotatedString(commandLine))
-                                    copiedCommand = true
+                                    clipboardManager.setText(AnnotatedString(combinedLogText))
+                                    copiedTerminal = true
                                 }
                             ) {
                                 Icon(
-                                    imageVector = if (copiedCommand) Icons.Default.Check else Icons.Default.ContentCopy,
-                                    contentDescription = "Copy command",
-                                    tint = if (copiedCommand) EmeraldSuccess else AntigravityBlue,
+                                    imageVector = if (copiedTerminal) Icons.Default.Check else Icons.Default.ContentCopy,
+                                    contentDescription = "Copy log",
+                                    tint = if (copiedTerminal) EmeraldSuccess else AntigravityBlue,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
-                                    text = if (copiedCommand) "Copied" else "Copy",
-                                    color = if (copiedCommand) EmeraldSuccess else AntigravityBlue,
+                                    text = if (copiedTerminal) "Copied" else "Copy",
+                                    color = if (copiedTerminal) EmeraldSuccess else AntigravityBlue,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
-                        }
-
-                        Surface(
-                            color = AntigravitySurface,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val cmdScroll = rememberScrollState()
-                            Text(
-                                text = "$ $commandLine",
-                                color = TextPrimary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                lineHeight = 16.sp,
-                                modifier = Modifier
-                                    .horizontalScroll(cmdScroll)
-                                    .padding(8.dp)
-                            )
                         }
                     }
                 }
@@ -292,7 +425,7 @@ fun ToolCallCard(
                             imageVector = Icons.Default.Folder,
                             contentDescription = null,
                             tint = TextMuted,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(12.dp)
                         )
                         Text(
                             text = "cwd: $cwd",
@@ -305,151 +438,211 @@ fun ToolCallCard(
                     }
                 }
 
-                // STDOUT output section
-                if (!output.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "STDOUT",
-                                color = EmeraldSuccess,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                text = "Copy",
-                                color = AntigravityBlue,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    clipboardManager.setText(AnnotatedString(output))
-                                }
-                            )
-                        }
+                // 3. Streaming Bounded Viewport (~220dp max-height with auto-scroll)
+                val terminalScroll = rememberScrollState()
+                val terminalHorizScroll = rememberScrollState()
 
-                        Surface(
-                            color = AntigravitySurface,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val outScroll = rememberScrollState()
-                            Text(
-                                text = output.trimEnd(),
-                                color = AssistantText,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 240.dp)
-                                    .horizontalScroll(outScroll)
-                                    .padding(8.dp)
-                            )
-                        }
+                // Auto-scroll to bottom as output streams in
+                LaunchedEffect(output?.length, error?.length) {
+                    if (output != null || error != null) {
+                        terminalScroll.animateScrollTo(terminalScroll.maxValue)
                     }
                 }
 
-                // STDERR output section
-                if (!error.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                Surface(
+                    color = Color(0xFF08090C),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF1E2228)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 60.dp, max = 220.dp)
+                            .verticalScroll(terminalScroll)
+                            .horizontalScroll(terminalHorizScroll)
+                            .padding(8.dp)
+                    ) {
+                        if (commandLine != null) {
                             Text(
-                                text = "STDERR",
-                                color = CrimsonDanger,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                text = "Copy",
-                                color = CrimsonDanger,
-                                fontSize = 10.sp,
+                                text = "$ $commandLine",
+                                color = AntigravityCyan,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.clickable {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    clipboardManager.setText(AnnotatedString(error))
-                                }
+                                lineHeight = 16.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                        }
+
+                        if (!output.isNullOrBlank()) {
+                            Text(
+                                text = output.trimEnd(),
+                                color = Color(0xFFE6EDF3),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
                             )
                         }
 
-                        Surface(
-                            color = CrimsonDanger.copy(alpha = 0.08f),
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(0.5.dp, CrimsonDanger.copy(alpha = 0.3f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val errScroll = rememberScrollState()
+                        if (!error.isNullOrBlank()) {
+                            if (!output.isNullOrBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                            }
                             Text(
                                 text = error.trimEnd(),
                                 color = CrimsonDanger,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
-                                lineHeight = 15.sp,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 200.dp)
-                                    .horizontalScroll(errScroll)
-                                    .padding(8.dp)
+                                lineHeight = 15.sp
                             )
                         }
-                    }
-                }
 
-                // Running state indicator
-                if (output.isNullOrBlank() && error.isNullOrBlank() && effectiveStatus == "RUNNING") {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    ) {
-                        CircularProgressIndicator(
-                            color = AmberWarning,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Command executing on device...",
-                            color = TextMuted,
-                            fontSize = 11.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-                    }
-                }
+                        // Running pulse indicator inside viewport
+                        if (effectiveStatus == "RUNNING") {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(top = 6.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    color = AmberWarning,
+                                    strokeWidth = 1.5.dp,
+                                    modifier = Modifier.size(10.dp)
+                                )
+                                Text(
+                                    text = if (output.isNullOrBlank() && error.isNullOrBlank()) {
+                                        "Executing in Android Bionic environment..."
+                                    } else {
+                                        "Streaming process output..."
+                                    },
+                                    color = AmberWarning.copy(alpha = 0.85f),
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
 
-                // If non-command tool without stdout/stderr, show formatted JSON arguments
-                if (commandLine == null && output.isNullOrBlank() && error.isNullOrBlank()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            text = "ARGUMENTS",
-                            color = TextMuted,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp
-                        )
-                        Surface(
-                            color = AntigravitySurface,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val argScroll = rememberScrollState()
+                        // If not command tool and empty output, show arguments JSON
+                        if (commandLine == null && output.isNullOrBlank() && error.isNullOrBlank()) {
                             Text(
                                 text = formatPrettyJson(argsJson),
                                 color = TextSecondary,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 11.sp,
-                                lineHeight = 15.sp,
+                                lineHeight = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Fullscreen Terminal Viewport Modal
+    if (showFullscreenModal) {
+        Dialog(
+            onDismissRequest = { showFullscreenModal = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                color = Color(0xFF090A0D),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .systemBarsPadding()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(14.dp)
+                ) {
+                    // Modal Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
                                 modifier = Modifier
-                                    .horizontalScroll(argScroll)
-                                    .padding(8.dp)
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(AntigravitySurface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = AgyIcons.TerminalSpark,
+                                    contentDescription = null,
+                                    tint = AntigravityCyan,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = headerTitle,
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${lineCount} lines • ${effectiveStatus}",
+                                    color = statusColor,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(combinedLogText))
+                                }
+                            ) {
+                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy all", tint = AntigravityBlue, modifier = Modifier.size(18.dp))
+                            }
+                            IconButton(onClick = { showFullscreenModal = false }) {
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary, modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Fullscreen Scrollable Body
+                    val modalVertScroll = rememberScrollState()
+                    val modalHorizScroll = rememberScrollState()
+
+                    Surface(
+                        color = Color(0xFF040507),
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF1E2228)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(modalVertScroll)
+                                .horizontalScroll(modalHorizScroll)
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = combinedLogText.ifBlank { "No output captured for this command." },
+                                color = Color(0xFFE6EDF3),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                lineHeight = 16.sp
                             )
                         }
                     }

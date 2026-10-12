@@ -302,7 +302,8 @@ fun ChatScreen(
                                     output = msg.toolOutput,
                                     error = msg.toolError,
                                     status = msg.toolStatus,
-                                    durationMs = msg.durationMs
+                                    durationMs = msg.durationMs,
+                                    onCancelCommand = { onCancel() }
                                 )
                             }
 
