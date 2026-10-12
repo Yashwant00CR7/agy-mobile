@@ -70,6 +70,7 @@ fun ChatScreen(
     onRequestStoragePermission: () -> Unit = {},
     onOpenFolderPicker: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
+    onOpenHomeScreenStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -132,6 +133,7 @@ fun ChatScreen(
                     onPromptChange(action)
                     onSend()
                 },
+                onOpenHomeScreenStudio = onOpenHomeScreenStudio,
                 modifier = Modifier
                     .navigationBarsPadding()
                     .imePadding()

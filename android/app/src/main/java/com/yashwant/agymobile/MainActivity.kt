@@ -20,12 +20,14 @@ import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.service.AgyAgentService
 import com.yashwant.agymobile.ui.components.AuthBottomSheet
 import com.yashwant.agymobile.ui.components.DeviceFolderPickerModal
+import com.yashwant.agymobile.ui.components.HomeScreenStudioModal
 import com.yashwant.agymobile.ui.drawers.ChatGptDrawer
 import com.yashwant.agymobile.ui.screens.ChatScreen
 import com.yashwant.agymobile.ui.theme.AgyTheme
 import com.yashwant.agymobile.ui.util.BrowserHelper
 import com.yashwant.agymobile.util.FileOpener
 import com.yashwant.agymobile.viewmodel.AgyViewModel
+import com.yashwant.agymobile.widget.AgyStatusWidgetReceiver
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
@@ -71,6 +73,7 @@ class MainActivity : ComponentActivity() {
         bindService(serviceIntent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         initSpeechRecognizer()
+        handleIncomingIntent(intent)
 
         setContent {
             AgyTheme {
@@ -90,6 +93,7 @@ class MainActivity : ComponentActivity() {
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
                 var showFolderPickerModal by remember { mutableStateOf(false) }
+                var showHomeScreenStudio by remember { mutableStateOf(false) }
 
                 var hasStorage by remember { mutableStateOf(hasStoragePermission()) }
                 val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -147,7 +151,11 @@ class MainActivity : ComponentActivity() {
                             onDeleteConversation = { id -> viewModel.deleteConversation(id) },
                             engineLogs = engineLogs,
                             onClearEngineLogs = { viewModel.clearEngineLogs() },
-                            shellDescription = viewModel.getShellDescription()
+                            shellDescription = viewModel.getShellDescription(),
+                            onOpenHomeScreenStudio = {
+                                closeDrawer()
+                                showHomeScreenStudio = true
+                            }
                         )
                     }
                 ) {
@@ -186,9 +194,11 @@ class MainActivity : ComponentActivity() {
                                         requestStoragePermission()
                                     }
                                     viewModel.selectWorkspace(dir, notify = true)
+                                    AgyStatusWidgetReceiver.updateAllWidgets(this@MainActivity)
                                 }
                             )
-                        }
+                        },
+                        onOpenHomeScreenStudio = { showHomeScreenStudio = true }
                     )
                 }
 
@@ -213,12 +223,21 @@ class MainActivity : ComponentActivity() {
                                 requestStoragePermission()
                             }
                             viewModel.selectWorkspace(dir, notify = true)
+                            AgyStatusWidgetReceiver.updateAllWidgets(this@MainActivity)
                             showFolderPickerModal = false
                         },
                         onDismiss = { showFolderPickerModal = false },
                         hasStoragePermission = hasStorage,
                         onRequestStoragePermission = { requestStoragePermission() },
                         deviceShortcuts = viewModel.getDeviceShortcuts()
+                    )
+                }
+
+                if (showHomeScreenStudio) {
+                    HomeScreenStudioModal(
+                        activeWorkspacePath = workspaceInfo.currentPath,
+                        activeWorkspaceName = workspaceName,
+                        onDismiss = { showHomeScreenStudio = false }
                     )
                 }
             }
@@ -342,6 +361,41 @@ class MainActivity : ComponentActivity() {
         } else {
             val fallback = android.os.Environment.getExternalStorageDirectory()
             viewModel.selectWorkspace(fallback)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIncomingIntent(intent)
+    }
+
+    private fun handleIncomingIntent(intent: Intent?) {
+        val action = intent?.action ?: return
+        when (action) {
+            "com.yashwant.agymobile.ACTION_OPEN_WORKSPACE" -> {
+                val path = intent.getStringExtra("EXTRA_WORKSPACE_PATH")
+                if (!path.isNullOrBlank()) {
+                    val dir = File(path)
+                    if (dir.exists() && dir.isDirectory) {
+                        viewModel.selectWorkspace(dir, notify = true)
+                        AgyStatusWidgetReceiver.updateAllWidgets(this)
+                    }
+                }
+            }
+            "com.yashwant.agymobile.ACTION_QUICK_PROMPT" -> {
+                val prompt = intent.getStringExtra("EXTRA_PROMPT_TEXT") ?: ""
+                if (prompt.isNotBlank()) {
+                    viewModel.onPromptChange(prompt)
+                    viewModel.sendPrompt(boundService)
+                }
+            }
+            "com.yashwant.agymobile.ACTION_NEW_CHAT" -> {
+                viewModel.clearChat()
+            }
+            "com.yashwant.agymobile.ACTION_START_VOICE" -> {
+                toggleVoiceDictation()
+            }
         }
     }
 

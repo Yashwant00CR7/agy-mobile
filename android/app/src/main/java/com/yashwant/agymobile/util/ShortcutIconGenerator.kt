@@ -21,7 +21,8 @@ data class ShortcutDesign(
     val accentColor: Int = 0xFF4285F4.toInt(),
     val emojiOrText: String? = null,
     val centerDrawable: Drawable? = null,
-    val showBorder: Boolean = true
+    val showBorder: Boolean = true,
+    val badge: String? = null
 )
 
 object ShortcutIconGenerator {
@@ -69,6 +70,24 @@ object ShortcutIconGenerator {
                 val fontMetrics = textPaint.fontMetrics
                 val baseline = (size / 2f) - ((fontMetrics.descent + fontMetrics.ascent) / 2f)
                 canvas.drawText(design.emojiOrText, size / 2f, baseline, textPaint)
+            }
+
+            // Draw badge in upper right if present
+            if (!design.badge.isNullOrBlank()) {
+                val badgePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF00E5FF.toInt()
+                    style = Paint.Style.FILL
+                }
+                val badgeTextPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = 0xFF080C14.toInt()
+                    textSize = size * 0.14f
+                    isFakeBoldText = true
+                    textAlign = Paint.Align.CENTER
+                }
+                val badgeRect = RectF(size * 0.58f, size * 0.08f, size * 0.92f, size * 0.28f)
+                canvas.drawRoundRect(badgeRect, size * 0.06f, size * 0.06f, badgePaint)
+                val badgeBaseline = badgeRect.centerY() - ((badgeTextPaint.fontMetrics.descent + badgeTextPaint.fontMetrics.ascent) / 2f)
+                canvas.drawText(design.badge.take(4), badgeRect.centerX(), badgeBaseline, badgeTextPaint)
             }
 
             bitmap

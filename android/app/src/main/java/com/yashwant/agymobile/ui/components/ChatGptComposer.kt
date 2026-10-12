@@ -35,6 +35,7 @@ fun ChatGptComposer(
     onVoiceClick: () -> Unit,
     isVoiceRecording: Boolean,
     onQuickAction: (String) -> Unit,
+    onOpenHomeScreenStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -107,6 +108,22 @@ fun ChatGptComposer(
                                 }
                             )
                         }
+                        HorizontalDivider(
+                            color = AntigravityHairline,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text("Home Screen & Widgets", color = AntigravityViolet, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                    Text("Pin custom shortcuts & reshaped widgets", color = TextSecondary, fontSize = 11.sp)
+                                }
+                            },
+                            onClick = {
+                                showQuickMenu = false
+                                onOpenHomeScreenStudio()
+                            }
+                        )
                     }
                 }
 

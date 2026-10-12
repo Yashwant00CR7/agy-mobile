@@ -50,6 +50,7 @@ fun ChatGptDrawer(
     engineLogs: List<com.yashwant.agymobile.core.EngineLogEntry> = emptyList(),
     onClearEngineLogs: () -> Unit = {},
     shellDescription: String = "/system/bin/sh (Android Bionic Shell)",
+    onOpenHomeScreenStudio: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -113,41 +114,83 @@ fun ChatGptDrawer(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. Primary "+ New Chat" Action Button
-            Surface(
-                onClick = {
-                    onNewChat()
-                    onCloseDrawer()
-                },
-                color = AntigravitySurface,
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.fillMaxWidth()
+            // 2. Primary "+ New Chat" and "Widgets" Action Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp)
+                Surface(
+                    onClick = {
+                        onNewChat()
+                        onCloseDrawer()
+                    },
+                    color = AntigravitySurface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1.1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(26.dp)
-                            .clip(CircleShape)
-                            .background(AntigravitySurfaceElevated),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp)
                     ) {
-                        Icon(
-                            imageVector = AgyIcons.NewChat,
-                            contentDescription = null,
-                            tint = TextPrimary,
-                            modifier = Modifier.size(14.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(AntigravitySurfaceElevated),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = AgyIcons.NewChat,
+                                contentDescription = null,
+                                tint = TextPrimary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                        Text(
+                            text = "New chat",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
-                    Text(
-                        text = "New chat",
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                }
+
+                Surface(
+                    onClick = {
+                        onOpenHomeScreenStudio()
+                        onCloseDrawer()
+                    },
+                    color = AntigravitySurface,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(0.9f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 11.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(AntigravitySurfaceElevated),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Widgets,
+                                contentDescription = null,
+                                tint = AntigravityViolet,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            text = "Widgets",
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
@@ -572,6 +615,22 @@ fun ChatGptDrawer(
                         Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Engine & Shell Logs (${engineLogs.size})", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showSettingsDialog = false
+                            onOpenHomeScreenStudio()
+                            onCloseDrawer()
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = AntigravityViolet),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AntigravityViolet.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Widgets, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Home Screen & Widget Studio", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                     }
                 }
             },
