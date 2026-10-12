@@ -144,3 +144,33 @@
 - [x] **REQ-56**: **Test Suite, Code Review & Release APK Build**:
   - Write unit tests for `ShortcutIconGeneratorTest.kt` verifying shape clipping, dimensions, and shortcut info generation.
   - Run `./gradlew test` and assemble `android/agy-mobile-debug.apk`.
+
+---
+
+## Milestone v2.2.0: Git Runtime, Heading Markdown Engine, Live Command HUD, Usage Credits & Remote Accessibility
+
+- [ ] **REQ-57**: **Heading & Markdown Rich Typography Engine**:
+  - Implement full Markdown block and line parser in `MarkdownLinkParser.kt` and `ChatScreen.kt`.
+  - Parse `# H1` (22sp bold, elevated line height), `## H2` (18sp bold), `### H3` (15sp bold), stripping raw `#` characters.
+  - Format bullet lists (`*`, `-`) as indented bullet points (`• `) with clean typography.
+  - Retain code block syntax highlighting, copy buttons, and interactive FileProvider links.
+- [ ] **REQ-58**: **Native Standalone ARM64 Git Runtime & Dynamic Git Accounts**:
+  - Bundle standalone ARM64 `git` executable / wrapper in the app environment so standard commands (`git status`, `git log`, `git commit`, `git diff`, `git branch`) execute reliably in Bionic shell without 'inaccessible or not found'.
+  - Support Dynamic Git Accounts in `BootstrapManager.kt` and Settings, defaulting to personal identity (`Yashwant00CR7` / `10a19yashwant@gmail.com`) with instant switcher.
+- [ ] **REQ-59**: **Interactive Live Command Monitoring HUD**:
+  - Implement real-time streaming Command Execution HUD in `ToolCallCard.kt`.
+  - Live animated running badge, ticking duration timer (`Running 3.4s...`), and bounded streaming terminal viewport (~220dp max-height) with auto-scroll and line-counter.
+  - Fullscreen terminal expand dialog and instant "Stop / Cancel" button to kill executing commands.
+- [ ] **REQ-60**: **Usage Credits & Token Quota Tracker**:
+  - Implement `UsageCreditsManager.kt` tracking prompt tokens, output tokens, and message turns per session and day.
+  - Add sleek "Credits & Token Usage" card in `ChatGptDrawer.kt` with live percentage gauge and tier indicator.
+  - Provide detailed Usage & Quota Breakdown modal in Drawer Settings showing per-chat and per-model consumption.
+- [ ] **REQ-61**: **Remote Control Accessibility Service**:
+  - Implement `AgyAccessibilityService.kt` registered in AndroidManifest with `accessibility_service_config.xml`.
+  - Provide automation actions: `device_click`, `device_scroll`, `device_type_text`, `device_press_key` (Home/Back/Recents), `device_read_screen`.
+  - Implement safety guardrails (autonomous execution for navigation, confirmation prompt for sensitive actions).
+  - Add in-app Accessibility Settings bridge card directing user to enable permission if not yet active.
+- [ ] **REQ-62**: **Test Suite Verification, Build & Google Drive Deployment**:
+  - Write comprehensive unit tests for markdown typography, git environment setup, usage tracker, and accessibility helpers.
+  - Build verified debug APK `android/agy-mobile-debug.apk`.
+  - Upload release APK directly to Google Drive folder `agy-mobile` (ID: `1nvhmMmrcd8U6oOtMNNjUP1_uB1s0WZtT`).

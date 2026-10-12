@@ -70,3 +70,12 @@
   - **Goal:** Build dynamic shortcut generator with custom shapes & icons, build 3 native AppWidgets, create in-app Home Screen Studio & Widget Reshaper modal, and wire drawer/composer entry points.
   - **Requirements Addressed:** REQ-52, REQ-53, REQ-54, REQ-55, REQ-56.
   - **Success Criteria:** User can visually design custom shortcuts, preview reshaped widgets, pin them to their home screen via Android ShortcutManager and AppWidgetManager, all tests pass, and APK builds.
+
+### Milestone v2.2.0: Git Runtime, Rich Markdown Engine, Live Command HUD, Usage Credits & Remote Accessibility
+*Goal:* Fix raw heading hashes in chat with a rich typography Markdown engine, bundle a native standalone ARM64 Git runtime with dynamic account identity, implement a live streaming command monitoring HUD with real-time autoscroll & cancel button, provide a visual Usage Credits & token quota tracker, and register an Android Accessibility Service for device automation with safety guardrails.
+
+#### Phases
+- [ ] **Phase 12: Git Runtime, Markdown Typography, Live Command HUD, Usage Credits & Remote Control** (In Progress)
+  - **Goal:** Build rich Markdown heading & list parser, package standalone ARM64 git binary with dynamic git identity switcher, build real-time streaming Command Execution HUD, add drawer Credits & Token Quota tracker with settings breakdown, implement AgyAccessibilityService for device automation, and deploy to Google Drive 'agy-mobile'.
+  - **Requirements Addressed:** REQ-57, REQ-58, REQ-59, REQ-60, REQ-61, REQ-62.
+  - **Success Criteria:** Headings and lists render cleanly without raw '#' hashes; 'git status' runs successfully in phone shell; commands stream live terminal output with ticking timer; credits card shows token usage in drawer; accessibility service performs clicks/scrolls with safety guards; release APK uploads to 'agy-mobile' on Google Drive.
