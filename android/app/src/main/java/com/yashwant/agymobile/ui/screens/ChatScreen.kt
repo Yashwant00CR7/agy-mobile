@@ -40,6 +40,7 @@ import com.yashwant.agymobile.model.ChatMessage
 import com.yashwant.agymobile.model.MessageRole
 import com.yashwant.agymobile.ui.components.*
 import com.yashwant.agymobile.ui.theme.*
+import com.yashwant.agymobile.util.MarkdownBlock
 import com.yashwant.agymobile.util.MarkdownLinkParser
 
 @Composable
@@ -515,14 +516,93 @@ private fun RichMarkdownMessage(
 ) {
     val clipboardManager = LocalClipboardManager.current
     val haptic = LocalHapticFeedback.current
-    val blocks = remember(content) { parseMarkdownBlocks(content) }
+    val blocks = remember(content) { MarkdownLinkParser.parseBlocks(content) }
 
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         blocks.forEach { block ->
             when (block) {
+                is MarkdownBlock.Heading -> {
+                    val fontSize = when (block.level) {
+                        1 -> 21.sp
+                        2 -> 18.sp
+                        else -> 15.sp
+                    }
+                    val fontWeight = if (block.level <= 2) FontWeight.Bold else FontWeight.SemiBold
+                    val color = if (block.level <= 2) TextPrimary else AntigravityBlue
+                    val topPadding = when (block.level) {
+                        1 -> 10.dp
+                        2 -> 8.dp
+                        else -> 5.dp
+                    }
+
+                    Text(
+                        text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
+                        color = color,
+                        fontSize = fontSize,
+                        fontWeight = fontWeight,
+                        lineHeight = (fontSize.value + 6).sp,
+                        modifier = Modifier.padding(top = topPadding, bottom = 2.dp)
+                    )
+                }
+
+                is MarkdownBlock.BulletItem -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = (block.level * 12).dp, top = 2.dp, bottom = 2.dp)
+                    ) {
+                        Text(
+                            text = "•",
+                            color = AntigravityBlue,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
+                            color = AssistantText,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                }
+
+                is MarkdownBlock.NumberedItem -> {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp, bottom = 2.dp)
+                    ) {
+                        Text(
+                            text = block.number,
+                            color = AntigravityCyan,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
+                            color = AssistantText,
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                }
+
+                is MarkdownBlock.Paragraph -> {
+                    Text(
+                        text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
+                        color = AssistantText,
+                        fontSize = 15.sp,
+                        lineHeight = 23.sp
+                    )
+                }
+
                 is MarkdownBlock.Code -> {
                     Surface(
                         color = AntigravityDarkBg,
@@ -570,41 +650,9 @@ private fun RichMarkdownMessage(
                         }
                     }
                 }
-                is MarkdownBlock.Text -> {
-                    Text(
-                        text = MarkdownLinkParser.parseAnnotatedMarkdown(block.text, onLinkClick = onOpenLink),
-                        color = AssistantText,
-                        fontSize = 15.sp,
-                        lineHeight = 23.sp
-                    )
-                }
             }
         }
     }
-}
-
-private sealed class MarkdownBlock {
-    data class Code(val language: String, val code: String) : MarkdownBlock()
-    data class Text(val text: String) : MarkdownBlock()
-}
-
-private fun parseMarkdownBlocks(raw: String): List<MarkdownBlock> {
-    val blocks = mutableListOf<MarkdownBlock>()
-    val parts = raw.split("```")
-    for (i in parts.indices) {
-        if (i % 2 == 1) {
-            val firstLineBreak = parts[i].indexOf('\n')
-            val lang = if (firstLineBreak != -1) parts[i].substring(0, firstLineBreak).trim() else ""
-            val code = if (firstLineBreak != -1) parts[i].substring(firstLineBreak + 1) else parts[i]
-            blocks.add(MarkdownBlock.Code(lang, code.trimEnd()))
-        } else {
-            val text = parts[i].trim()
-            if (text.isNotEmpty()) {
-                blocks.add(MarkdownBlock.Text(text))
-            }
-        }
-    }
-    return blocks
 }
 
 @Composable

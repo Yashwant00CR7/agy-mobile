@@ -14,6 +14,14 @@ import com.yashwant.agymobile.ui.theme.AntigravityCyan
 import com.yashwant.agymobile.ui.theme.AntigravityDarkBg
 import com.yashwant.agymobile.ui.theme.TextPrimary
 
+sealed class MarkdownBlock {
+    data class Code(val language: String, val code: String) : MarkdownBlock()
+    data class Heading(val level: Int, val text: String) : MarkdownBlock()
+    data class BulletItem(val level: Int, val text: String) : MarkdownBlock()
+    data class NumberedItem(val number: String, val text: String) : MarkdownBlock()
+    data class Paragraph(val text: String) : MarkdownBlock()
+}
+
 object MarkdownLinkParser {
 
     private val MD_LINK_REGEX = Regex("\\[([^\\]]+)\\]\\(([^)]+)\\)")
@@ -22,6 +30,78 @@ object MarkdownLinkParser {
     private val CODE_REGEX = Regex("`([^`]+)`")
 
     fun getIconForTarget(target: LinkTarget): String = target.icon
+
+    fun parseBlocks(raw: String): List<MarkdownBlock> {
+        val blocks = mutableListOf<MarkdownBlock>()
+        val codeParts = raw.split("```")
+        for (i in codeParts.indices) {
+            if (i % 2 == 1) {
+                // Code block inside ```
+                val firstLineBreak = codeParts[i].indexOf('\n')
+                val lang = if (firstLineBreak != -1) codeParts[i].substring(0, firstLineBreak).trim() else ""
+                val code = if (firstLineBreak != -1) codeParts[i].substring(firstLineBreak + 1) else codeParts[i]
+                blocks.add(MarkdownBlock.Code(lang, code.trimEnd()))
+            } else {
+                // Text block - parse line by line for Headings, Bullets, Numbered Lists, and Paragraphs
+                val textSection = codeParts[i]
+                val lines = textSection.lines()
+                val paragraphBuffer = mutableListOf<String>()
+
+                fun flushParagraph() {
+                    if (paragraphBuffer.isNotEmpty()) {
+                        val combined = paragraphBuffer.joinToString("\n").trim()
+                        if (combined.isNotEmpty()) {
+                            blocks.add(MarkdownBlock.Paragraph(combined))
+                        }
+                        paragraphBuffer.clear()
+                    }
+                }
+
+                for (line in lines) {
+                    val trimmed = line.trim()
+                    if (trimmed.isEmpty()) {
+                        flushParagraph()
+                        continue
+                    }
+
+                    // 1. Headings (# H1, ## H2, ### H3, #### H4)
+                    val headingMatch = Regex("^(#{1,6})\\s+(.+)$").find(trimmed)
+                    if (headingMatch != null) {
+                        flushParagraph()
+                        val level = headingMatch.groupValues[1].length
+                        val headingText = headingMatch.groupValues[2].trim()
+                        blocks.add(MarkdownBlock.Heading(level, headingText))
+                        continue
+                    }
+
+                    // 2. Bullet list items (* item, - item, + item)
+                    val bulletMatch = Regex("^([*\\-+])\\s+(.+)$").find(trimmed)
+                    if (bulletMatch != null) {
+                        flushParagraph()
+                        val indent = (line.takeWhile { it.isWhitespace() }.length / 2).coerceIn(0, 4)
+                        val bulletText = bulletMatch.groupValues[2].trim()
+                        blocks.add(MarkdownBlock.BulletItem(indent, bulletText))
+                        continue
+                    }
+
+                    // 3. Numbered list items (1. item, 2) item)
+                    val numberedMatch = Regex("^(\\d+[.)])\\s+(.+)$").find(trimmed)
+                    if (numberedMatch != null) {
+                        flushParagraph()
+                        val numberPrefix = numberedMatch.groupValues[1]
+                        val itemText = numberedMatch.groupValues[2].trim()
+                        blocks.add(MarkdownBlock.NumberedItem(numberPrefix, itemText))
+                        continue
+                    }
+
+                    // Standard text inside paragraph
+                    paragraphBuffer.add(line)
+                }
+                flushParagraph()
+            }
+        }
+        return blocks
+    }
 
     fun parseAnnotatedMarkdown(
         rawText: String,

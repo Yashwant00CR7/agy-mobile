@@ -117,4 +117,83 @@ class MarkdownLinkParserTest {
         val annotated = MarkdownLinkParser.parseAnnotatedMarkdown(raw)
         assertEquals("Run git status to see branch info.", annotated.text)
     }
+
+    @Test
+    fun testParseBlocksHeadings() {
+        val raw = """
+            # Project Heading
+            Intro paragraph.
+            ## Sub Section
+            More details.
+            ### 1. Temporary and Test Files (Highly safe to delete)
+            File details.
+        """.trimIndent()
+
+        val blocks = MarkdownLinkParser.parseBlocks(raw)
+        assertEquals(6, blocks.size)
+        assertTrue(blocks[0] is MarkdownBlock.Heading)
+        assertEquals(1, (blocks[0] as MarkdownBlock.Heading).level)
+        assertEquals("Project Heading", (blocks[0] as MarkdownBlock.Heading).text)
+
+        assertTrue(blocks[1] is MarkdownBlock.Paragraph)
+        assertEquals("Intro paragraph.", (blocks[1] as MarkdownBlock.Paragraph).text)
+
+        assertTrue(blocks[2] is MarkdownBlock.Heading)
+        assertEquals(2, (blocks[2] as MarkdownBlock.Heading).level)
+        assertEquals("Sub Section", (blocks[2] as MarkdownBlock.Heading).text)
+
+        assertTrue(blocks[4] is MarkdownBlock.Heading)
+        assertEquals(3, (blocks[4] as MarkdownBlock.Heading).level)
+        assertEquals("1. Temporary and Test Files (Highly safe to delete)", (blocks[4] as MarkdownBlock.Heading).text)
+    }
+
+    @Test
+    fun testParseBlocksBulletAndNumberedLists() {
+        val raw = """
+            Items to review:
+            * temp.pdf
+            * temp (1).pdf
+            1. First step
+            2. Second step
+        """.trimIndent()
+
+        val blocks = MarkdownLinkParser.parseBlocks(raw)
+        assertEquals(5, blocks.size)
+        assertTrue(blocks[0] is MarkdownBlock.Paragraph)
+        assertTrue(blocks[1] is MarkdownBlock.BulletItem)
+        assertEquals("temp.pdf", (blocks[1] as MarkdownBlock.BulletItem).text)
+        assertTrue(blocks[2] is MarkdownBlock.BulletItem)
+        assertEquals("temp (1).pdf", (blocks[2] as MarkdownBlock.BulletItem).text)
+
+        assertTrue(blocks[3] is MarkdownBlock.NumberedItem)
+        assertEquals("1.", (blocks[3] as MarkdownBlock.NumberedItem).number)
+        assertEquals("First step", (blocks[3] as MarkdownBlock.NumberedItem).text)
+
+        assertTrue(blocks[4] is MarkdownBlock.NumberedItem)
+        assertEquals("2.", (blocks[4] as MarkdownBlock.NumberedItem).number)
+        assertEquals("Second step", (blocks[4] as MarkdownBlock.NumberedItem).text)
+    }
+
+    @Test
+    fun testParseBlocksWithCodeBlock() {
+        val raw = """
+            ### Code snippet
+            ```kotlin
+            val x = 42
+            ```
+            End note.
+        """.trimIndent()
+
+        val blocks = MarkdownLinkParser.parseBlocks(raw)
+        assertEquals(3, blocks.size)
+        assertTrue(blocks[0] is MarkdownBlock.Heading)
+        assertEquals("Code snippet", (blocks[0] as MarkdownBlock.Heading).text)
+
+        assertTrue(blocks[1] is MarkdownBlock.Code)
+        assertEquals("kotlin", (blocks[1] as MarkdownBlock.Code).language)
+        assertEquals("val x = 42", (blocks[1] as MarkdownBlock.Code).code)
+
+        assertTrue(blocks[2] is MarkdownBlock.Paragraph)
+        assertEquals("End note.", (blocks[2] as MarkdownBlock.Paragraph).text)
+    }
 }
