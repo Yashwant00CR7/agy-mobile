@@ -1,3 +1,9 @@
 <resources>
-    <string name="app_name">NotifFilter</string>
+    <string name="app_name">Antigravity</string>
+    <string name="widget_prompt_title">AI Prompt Pill</string>
+    <string name="widget_prompt_desc">Fast voice and text prompt pill for Antigravity AI</string>
+    <string name="widget_actions_title">Quick Actions</string>
+    <string name="widget_actions_desc">One-tap tools and shortcuts for Antigravity actions</string>
+    <string name="widget_status_title">Workspace &amp; Status</string>
+    <string name="widget_status_desc">Active mobile workspace folder and engine status card</string>
 </resources>

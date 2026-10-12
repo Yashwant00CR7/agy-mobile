@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_actions_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_card_background"
+    android:padding="12dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="6dp">
+
+        <ImageView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:src="@drawable/ic_widget_sparkle"
+            android:contentDescription="AGY" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="6dp"
+            android:text="QUICK ACTIONS"
+            android:textColor="#9E9E9E"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 4 Action Buttons Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:weightSum="4">
+
+        <!-- New Chat -->
+        <LinearLayout
+            android:id="@+id/btn_action_new_chat"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/widget_button_background"
+            android:padding="6dp"
+            android:clickable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_widget_chat"
+                android:contentDescription="New Chat" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="New Chat"
+                android:textColor="#E0E0E0"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Folder -->
+        <LinearLayout
+            android:id="@+id/btn_action_folder"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/widget_button_background"
+            android:padding="6dp"
+            android:clickable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_widget_folder"
+                android:contentDescription="Workspace" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Folder"
+                android:textColor="#E0E0E0"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Voice -->
+        <LinearLayout
+            android:id="@+id/btn_action_voice"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/widget_button_background"
+            android:padding="6dp"
+            android:clickable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_widget_mic"
+                android:contentDescription="Voice" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Voice"
+                android:textColor="#E0E0E0"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+        <!-- Prompt -->
+        <LinearLayout
+            android:id="@+id/btn_action_prompt"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:background="@drawable/widget_button_background"
+            android:padding="6dp"
+            android:clickable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_widget_sparkle"
+                android:contentDescription="Prompt" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Prompt"
+                android:textColor="#E0E0E0"
+                android:textSize="10sp"
+                android:maxLines="1" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+</LinearLayout>
