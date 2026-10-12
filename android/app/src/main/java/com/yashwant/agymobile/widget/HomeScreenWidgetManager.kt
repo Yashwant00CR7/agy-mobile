@@ -6,10 +6,34 @@ import android.content.Context
 import android.os.Build
 import android.widget.Toast
 
-enum class WidgetType(val title: String, val description: String) {
-    PROMPT_PILL("AI Prompt Pill", "Compact voice & text prompt bar for home screen"),
-    ACTIONS_GRID("Quick Actions Grid", "One-tap buttons for Chat, Workspace, Voice & Prompt"),
-    STATUS_CARD("Workspace Status Card", "Live folder status, engine readiness & quick launch")
+enum class WidgetType(
+    val title: String,
+    val description: String,
+    val standardDimensions: String,
+    val compactProportion: String,
+    val expandedProportion: String
+) {
+    PROMPT_PILL(
+        title = "Prompt Pill",
+        description = "Compact voice & text prompt bar for home screen",
+        standardDimensions = "3x1 / 2x1",
+        compactProportion = "Standard Pill (3x1)",
+        expandedProportion = "Compact Pill (2x1)"
+    ),
+    ACTIONS_GRID(
+        title = "Actions Grid",
+        description = "One-tap buttons for Chat, Workspace, Voice & Prompt",
+        standardDimensions = "4x1 / 3x2",
+        compactProportion = "Single Row (4x1)",
+        expandedProportion = "Expanded Grid (3x2)"
+    ),
+    STATUS_CARD(
+        title = "Status Card",
+        description = "Live folder status, engine readiness & quick launch",
+        standardDimensions = "4x2 / 3x2",
+        compactProportion = "Compact (3x2)",
+        expandedProportion = "Full Card (4x2)"
+    )
 }
 
 object HomeScreenWidgetManager {

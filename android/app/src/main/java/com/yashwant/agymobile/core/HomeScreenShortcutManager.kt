@@ -22,6 +22,13 @@ sealed class ShortcutTarget {
 
 object HomeScreenShortcutManager {
 
+    const val ACTION_OPEN_WORKSPACE = "com.yashwant.agymobile.ACTION_OPEN_WORKSPACE"
+    const val EXTRA_WORKSPACE_PATH = "EXTRA_WORKSPACE_PATH"
+    const val ACTION_QUICK_PROMPT = "com.yashwant.agymobile.ACTION_QUICK_PROMPT"
+    const val EXTRA_PROMPT_TEXT = "EXTRA_PROMPT_TEXT"
+    const val ACTION_NEW_CHAT = "com.yashwant.agymobile.ACTION_NEW_CHAT"
+    const val ACTION_START_VOICE = "com.yashwant.agymobile.ACTION_START_VOICE"
+
     fun isPinShortcutSupported(context: Context): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val shortcutManager = context.getSystemService(ShortcutManager::class.java)
@@ -88,27 +95,27 @@ object HomeScreenShortcutManager {
             }
             is ShortcutTarget.OpenWorkspace -> {
                 Intent(context, MainActivity::class.java).apply {
-                    action = "com.yashwant.agymobile.ACTION_OPEN_WORKSPACE"
-                    putExtra("EXTRA_WORKSPACE_PATH", target.folderPath)
+                    action = ACTION_OPEN_WORKSPACE
+                    putExtra(EXTRA_WORKSPACE_PATH, target.folderPath)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
             }
             is ShortcutTarget.QuickPrompt -> {
                 Intent(context, MainActivity::class.java).apply {
-                    action = "com.yashwant.agymobile.ACTION_QUICK_PROMPT"
-                    putExtra("EXTRA_PROMPT_TEXT", target.promptText)
+                    action = ACTION_QUICK_PROMPT
+                    putExtra(EXTRA_PROMPT_TEXT, target.promptText)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
             }
             is ShortcutTarget.NewChat -> {
                 Intent(context, MainActivity::class.java).apply {
-                    action = "com.yashwant.agymobile.ACTION_NEW_CHAT"
+                    action = ACTION_NEW_CHAT
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
             }
             is ShortcutTarget.VoiceDictation -> {
                 Intent(context, MainActivity::class.java).apply {
-                    action = "com.yashwant.agymobile.ACTION_START_VOICE"
+                    action = ACTION_START_VOICE
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 }
             }

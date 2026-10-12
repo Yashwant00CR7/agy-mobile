@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.rememberDrawerState
+import com.yashwant.agymobile.core.HomeScreenShortcutManager
 import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.service.AgyAgentService
 import com.yashwant.agymobile.ui.components.AuthBottomSheet
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private var boundService: AgyAgentService? = null
     private var isBound = false
     private var speechRecognizer: SpeechRecognizer? = null
+    private val showFolderPickerModalState = mutableStateOf(false)
 
     private val openDocumentTreeLauncher = registerForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.OpenDocumentTree()
@@ -92,7 +94,7 @@ class MainActivity : ComponentActivity() {
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
-                var showFolderPickerModal by remember { mutableStateOf(false) }
+                var showFolderPickerModal by remember { showFolderPickerModalState }
                 var showHomeScreenStudio by remember { mutableStateOf(false) }
 
                 var hasStorage by remember { mutableStateOf(hasStoragePermission()) }
@@ -122,6 +124,7 @@ class MainActivity : ComponentActivity() {
                                     requestStoragePermission()
                                 }
                                 viewModel.selectWorkspace(dir, notify = true)
+                                AgyStatusWidgetReceiver.updateAllWidgets(this@MainActivity)
                                 closeDrawer()
                             },
                             onCreateProject = { name ->
@@ -373,27 +376,29 @@ class MainActivity : ComponentActivity() {
     private fun handleIncomingIntent(intent: Intent?) {
         val action = intent?.action ?: return
         when (action) {
-            "com.yashwant.agymobile.ACTION_OPEN_WORKSPACE" -> {
-                val path = intent.getStringExtra("EXTRA_WORKSPACE_PATH")
+            HomeScreenShortcutManager.ACTION_OPEN_WORKSPACE -> {
+                val path = intent.getStringExtra(HomeScreenShortcutManager.EXTRA_WORKSPACE_PATH)
                 if (!path.isNullOrBlank()) {
                     val dir = File(path)
                     if (dir.exists() && dir.isDirectory) {
                         viewModel.selectWorkspace(dir, notify = true)
                         AgyStatusWidgetReceiver.updateAllWidgets(this)
                     }
+                } else {
+                    showFolderPickerModalState.value = true
                 }
             }
-            "com.yashwant.agymobile.ACTION_QUICK_PROMPT" -> {
-                val prompt = intent.getStringExtra("EXTRA_PROMPT_TEXT") ?: ""
+            HomeScreenShortcutManager.ACTION_QUICK_PROMPT -> {
+                val prompt = intent.getStringExtra(HomeScreenShortcutManager.EXTRA_PROMPT_TEXT) ?: ""
                 if (prompt.isNotBlank()) {
                     viewModel.onPromptChange(prompt)
-                    viewModel.sendPrompt(boundService)
+                    boundService?.let { viewModel.sendPrompt(it) }
                 }
             }
-            "com.yashwant.agymobile.ACTION_NEW_CHAT" -> {
+            HomeScreenShortcutManager.ACTION_NEW_CHAT -> {
                 viewModel.clearChat()
             }
-            "com.yashwant.agymobile.ACTION_START_VOICE" -> {
+            HomeScreenShortcutManager.ACTION_START_VOICE -> {
                 toggleVoiceDictation()
             }
         }

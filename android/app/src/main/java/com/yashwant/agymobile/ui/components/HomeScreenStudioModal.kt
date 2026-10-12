@@ -129,8 +129,8 @@ fun HomeScreenStudioModal(
                         )
                     } else {
                         WidgetStudioTab(
-                            activeWorkspaceName = activeWorkspaceName,
-                            activeWorkspacePath = activeWorkspacePath
+                            activeWorkspacePath = activeWorkspacePath,
+                            activeWorkspaceName = activeWorkspaceName
                         )
                     }
                 }
@@ -138,6 +138,13 @@ fun HomeScreenStudioModal(
         }
     }
 }
+
+data class ShortcutPreset(
+    val name: String,
+    val target: ShortcutTarget,
+    val emoji: String,
+    val defaultLabel: String
+)
 
 @Composable
 private fun TabPill(
@@ -171,46 +178,63 @@ private fun ShortcutStudioTab(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Shortcut Target Types
-    val targets = remember(activeWorkspacePath, activeWorkspaceName) {
+    // Structured Shortcut Presets
+    val presets = remember(activeWorkspacePath, activeWorkspaceName) {
         listOf(
-            "New Chat" to (ShortcutTarget.NewChat to "💬"),
-            "Active Workspace" to (ShortcutTarget.OpenWorkspace(activeWorkspacePath, activeWorkspaceName) to "📁"),
-            "Voice Dictation" to (ShortcutTarget.VoiceDictation to "🎤"),
-            "Code Review" to (ShortcutTarget.QuickPrompt("Perform code review on recent git changes") to "⚡"),
-            "Chrome Browser" to (ShortcutTarget.LaunchApp("com.android.chrome", "Chrome") to "🌐")
+            ShortcutPreset(
+                name = "New Chat",
+                target = ShortcutTarget.NewChat,
+                emoji = "💬",
+                defaultLabel = "AGY Chat"
+            ),
+            ShortcutPreset(
+                name = "Active Workspace",
+                target = ShortcutTarget.OpenWorkspace(activeWorkspacePath, activeWorkspaceName),
+                emoji = "📁",
+                defaultLabel = activeWorkspaceName.ifBlank { "Workspace" }
+            ),
+            ShortcutPreset(
+                name = "Voice Dictation",
+                target = ShortcutTarget.VoiceDictation,
+                emoji = "🎤",
+                defaultLabel = "AGY Voice"
+            ),
+            ShortcutPreset(
+                name = "Code Review",
+                target = ShortcutTarget.QuickPrompt("Perform code review on recent git changes"),
+                emoji = "⚡",
+                defaultLabel = "AGY Review"
+            ),
+            ShortcutPreset(
+                name = "Chrome Browser",
+                target = ShortcutTarget.LaunchApp("com.android.chrome", "Chrome"),
+                emoji = "🌐",
+                defaultLabel = "Chrome"
+            )
         )
     }
 
     var selectedTargetIndex by remember { mutableIntStateOf(0) }
     var selectedShape by remember { mutableStateOf(IconShape.SQUIRCLE) }
-    var selectedColor by remember { mutableStateOf(Color(0xFF7C4DFF)) }
+    var selectedColor by remember { mutableStateOf(AntigravityViolet) }
     var labelText by remember { mutableStateOf("AGY Chat") }
     var symbolText by remember { mutableStateOf("💬") }
     var badgeText by remember { mutableStateOf("AI") }
 
-    // When target selection changes, update defaults
+    // When preset changes, update defaults
     LaunchedEffect(selectedTargetIndex) {
-        val (name, pair) = targets[selectedTargetIndex]
-        val (_, symbol) = pair
-        symbolText = symbol
-        labelText = when (name) {
-            "New Chat" -> "AGY Chat"
-            "Active Workspace" -> activeWorkspaceName.ifBlank { "Workspace" }
-            "Voice Dictation" -> "AGY Voice"
-            "Code Review" -> "AGY Review"
-            "Chrome Browser" -> "Chrome"
-            else -> name
-        }
+        val preset = presets[selectedTargetIndex]
+        symbolText = preset.emoji
+        labelText = preset.defaultLabel
     }
 
     val palette = listOf(
-        Color(0xFF7C4DFF), // Violet
-        Color(0xFF4E80EE), // Antigravity Blue
-        Color(0xFF22D3EE), // Cyan
-        Color(0xFF10B981), // Emerald
-        Color(0xFFFF9800), // Amber/Orange
-        Color(0xFFEF4444)  // Crimson
+        AntigravityViolet,
+        AntigravityBlue,
+        AntigravityCyan,
+        EmeraldSuccess,
+        AmberWarning,
+        CrimsonDanger
     )
 
     Column(
@@ -310,11 +334,11 @@ private fun ShortcutStudioTab(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            targets.take(3).forEachIndexed { index, (name, _) ->
+            presets.take(3).forEachIndexed { index, preset ->
                 FilterChip(
                     selected = selectedTargetIndex == index,
                     onClick = { selectedTargetIndex = index },
-                    label = { Text(name, fontSize = 11.sp) },
+                    label = { Text(preset.name, fontSize = 11.sp) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -324,12 +348,12 @@ private fun ShortcutStudioTab(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            targets.drop(3).forEachIndexed { idx, (name, _) ->
+            presets.drop(3).forEachIndexed { idx, preset ->
                 val actualIndex = idx + 3
                 FilterChip(
                     selected = selectedTargetIndex == actualIndex,
                     onClick = { selectedTargetIndex = actualIndex },
-                    label = { Text(name, fontSize = 11.sp) },
+                    label = { Text(preset.name, fontSize = 11.sp) },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -481,7 +505,7 @@ private fun ShortcutStudioTab(
         // CTA: Pin to Home Screen
         Button(
             onClick = {
-                val target = targets[selectedTargetIndex].second.first
+                val target = presets[selectedTargetIndex].target
                 val design = ShortcutDesign(
                     label = labelText.ifBlank { "Antigravity" },
                     shape = selectedShape,
@@ -516,14 +540,14 @@ private fun ShortcutStudioTab(
 
 @Composable
 private fun WidgetStudioTab(
-    activeWorkspaceName: String,
-    activeWorkspacePath: String
+    activeWorkspacePath: String,
+    activeWorkspaceName: String
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     var selectedWidgetType by remember { mutableStateOf(WidgetType.PROMPT_PILL) }
-    var selectedAccent by remember { mutableStateOf(Color(0xFF7C4DFF)) }
+    var selectedAccent by remember { mutableStateOf(AntigravityViolet) }
     var isExpandedShape by remember { mutableStateOf(false) }
 
     Column(
@@ -562,22 +586,14 @@ private fun WidgetStudioTab(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = when (widget) {
-                                WidgetType.PROMPT_PILL -> "Prompt Pill"
-                                WidgetType.ACTIONS_GRID -> "Actions Grid"
-                                WidgetType.STATUS_CARD -> "Status Card"
-                            },
+                            text = widget.title,
                             color = if (isSelected) TextPrimary else TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = when (widget) {
-                                WidgetType.PROMPT_PILL -> "3x1 / 2x1"
-                                WidgetType.ACTIONS_GRID -> "4x1 / 3x2"
-                                WidgetType.STATUS_CARD -> "4x2 / 3x2"
-                            },
+                            text = widget.standardDimensions,
                             color = TextMuted,
                             fontSize = 10.sp
                         )
@@ -606,11 +622,7 @@ private fun WidgetStudioTab(
                 onClick = { isExpandedShape = false },
                 label = {
                     Text(
-                        when (selectedWidgetType) {
-                            WidgetType.PROMPT_PILL -> "Standard Pill (3x1)"
-                            WidgetType.ACTIONS_GRID -> "Single Row (4x1)"
-                            WidgetType.STATUS_CARD -> "Compact (3x2)"
-                        },
+                        selectedWidgetType.compactProportion,
                         fontSize = 12.sp
                     )
                 },
@@ -622,11 +634,7 @@ private fun WidgetStudioTab(
                 onClick = { isExpandedShape = true },
                 label = {
                     Text(
-                        when (selectedWidgetType) {
-                            WidgetType.PROMPT_PILL -> "Compact Pill (2x1)"
-                            WidgetType.ACTIONS_GRID -> "Expanded Grid (3x2)"
-                            WidgetType.STATUS_CARD -> "Full Card (4x2)"
-                        },
+                        selectedWidgetType.expandedProportion,
                         fontSize = 12.sp
                     )
                 },

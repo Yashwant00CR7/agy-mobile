@@ -53,7 +53,11 @@ class ShortcutIconGeneratorTest {
         )
         // In JVM unit tests without graphics engine, createIconBitmap catches and handles gracefully
         val bitmap = ShortcutIconGenerator.createIconBitmap(design, size = 192)
-        // Assert that calling createIconBitmap completes without throwing an unhandled exception
+        // Assert that calling createIconBitmap completes safely without throwing
+        assertTrue("Bitmap call handles safely", bitmap == null || bitmap.width == 192)
+
+        val designWithBadge = ShortcutDesign(label = "Dev", badge = "AI")
+        assertEquals("AI", designWithBadge.badge)
     }
 
     @Test

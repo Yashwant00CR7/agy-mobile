@@ -38,10 +38,14 @@ class AgyStatusWidgetReceiver : AppWidgetProvider() {
             val folderPath = activeDir.absolutePath
             val wsInfo = workspaceManager.getWorkspaceInfo(activeDir)
 
+            val freeBytes = try { activeDir.freeSpace } catch (_: Exception) { 0L }
+            val freeGb = freeBytes / (1024L * 1024L * 1024L)
+            val storageText = if (freeGb > 0) "${freeGb}GB free" else "Ready"
+
             val engineDetails = if (wsInfo.gitBranch != null) {
-                "Daemon Ready • branch: ${wsInfo.gitBranch}"
+                "$storageText • branch: ${wsInfo.gitBranch}"
             } else {
-                "Daemon Ready • ARM64 Native"
+                "$storageText • ARM64 Native"
             }
 
             views.setTextViewText(R.id.tv_widget_folder_name, folderName)

@@ -17,9 +17,12 @@ class HomeScreenWidgetManagerTest {
             assertTrue("Description should not be blank for $type", type.description.isNotBlank())
         }
 
-        assertEquals("AI Prompt Pill", WidgetType.PROMPT_PILL.title)
-        assertEquals("Quick Actions Grid", WidgetType.ACTIONS_GRID.title)
-        assertEquals("Workspace Status Card", WidgetType.STATUS_CARD.title)
+        assertEquals("Prompt Pill", WidgetType.PROMPT_PILL.title)
+        assertEquals("Actions Grid", WidgetType.ACTIONS_GRID.title)
+        assertEquals("Status Card", WidgetType.STATUS_CARD.title)
+        assertEquals("3x1 / 2x1", WidgetType.PROMPT_PILL.standardDimensions)
+        assertEquals("Standard Pill (3x1)", WidgetType.PROMPT_PILL.compactProportion)
+        assertEquals("Compact Pill (2x1)", WidgetType.PROMPT_PILL.expandedProportion)
     }
 
     @Test
