@@ -25,6 +25,7 @@ fun ApkInstallCard(
     onInstall: () -> Unit,
     onShare: () -> Unit,
     onSaveDownloads: () -> Unit,
+    onFixWithAi: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -105,18 +106,76 @@ fun ApkInstallCard(
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 StatItem(label = "Version", value = "v${result.versionName}")
-                StatItem(label = "Size", value = "${result.sizeBytes / 1024} KB")
+                StatItem(label = "Size", value = if (result.sizeBytes > 0) "${result.sizeBytes / 1024} KB" else "N/A")
                 StatItem(label = "Build Time", value = "${String.format("%.1f", result.durationMs / 1000.0)}s")
             }
 
             if (!result.success) {
-                // Error description
-                Text(
-                    text = result.errorMessage ?: "Unknown compilation error",
-                    color = CrimsonDanger,
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                // Interactive Diagnostic Error Display
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(CrimsonDanger.copy(alpha = 0.1f))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Stage: ${result.failedStage?.name ?: "COMPILATION"}",
+                        color = CrimsonDanger,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+
+                    if (result.errors.isNotEmpty()) {
+                        result.errors.take(4).forEach { err ->
+                            Text(
+                                text = "• ${err.file ?: "File"}:${err.line ?: "?"} => ${err.message}",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = result.errorMessage ?: "Unknown compilation error",
+                            color = CrimsonDanger,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                if (onFixWithAi != null) {
+                    Button(
+                        onClick = {
+                            val details = buildString {
+                                appendLine("The on-device APK compilation failed with the following diagnostics:")
+                                appendLine("Stage: ${result.failedStage?.name}")
+                                if (!result.errorMessage.isNullOrBlank()) appendLine("Message: ${result.errorMessage}")
+                                result.errors.forEach { err ->
+                                    appendLine("- ${err.file ?: "File"}:${err.line ?: "?"} => ${err.message}")
+                                }
+                                appendLine("\nPlease inspect the errors above, fix the affected files in the workspace, and rebuild the APK.")
+                            }
+                            onFixWithAi(details)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CrimsonDanger,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Build, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Ask AI to Fix & Recompile",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
             } else {
                 // Action Buttons
                 Row(

@@ -10,6 +10,8 @@ import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.model.*
 import com.yashwant.agymobile.service.AgyAgentService
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -120,6 +122,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             bootstrapManager.extractAssetsFromContext(application)
         }
+        startCompilerIpcWatcher()
     }
 
     fun refreshConversations() {
@@ -344,6 +347,11 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun submitPrompt(text: String, service: AgyAgentService? = null) {
+        _promptText.value = text
+        sendPrompt(service ?: boundServiceInstance)
+    }
+
     fun sendPrompt(service: AgyAgentService? = null) {
         val text = _promptText.value.trim()
         if (text.isBlank() || _isRunning.value) return
@@ -352,6 +360,22 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
             _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
             _promptText.value = ""
             openAuthSheet()
+            return
+        }
+
+        val lower = text.lowercase().trim()
+        val isFixOrExplain = lower.contains("fix") || lower.contains("why") || lower.contains("error") || lower.contains("issue") || lower.contains("failed") || lower.contains("how")
+        val isCompileIntent = !isFixOrExplain && lower.length < 80 && (
+            lower == "build-apk" || lower == "compile-apk" ||
+            ((lower.contains("compile") || lower.contains("build") || lower.contains("generate") || lower.contains("create") || lower.contains("make")) &&
+             (lower.contains("apk") || lower.contains(".apk")))
+        )
+
+        if (isCompileIntent) {
+            _messages.value = _messages.value + ChatMessage(role = MessageRole.USER, content = text)
+            _promptText.value = ""
+            saveCurrentSession()
+            triggerBuildApk()
             return
         }
 
@@ -366,10 +390,11 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
         saveCurrentSession()
 
         val agyExe = bootstrapManager.getAgyExecutable()
-        val engine = service?.engine
+        val activeService = service ?: boundServiceInstance
+        val engine = activeService?.engine
 
-        if (service != null) {
-            attachService(service)
+        if (activeService != null) {
+            attachService(activeService)
         }
 
         if (agyExe != null && engine != null) {
@@ -459,7 +484,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                 } else if (event.name == "build_apk" || event.name == "compile_apk" ||
-                    (event.name == "run_command" && (event.argsJson.contains("build-apk") || event.argsJson.contains("compile-apk")))) {
+                    (event.name.endsWith("run_command") && (event.argsJson.contains("build-apk") || event.argsJson.contains("compile-apk")))) {
                     viewModelScope.launch(Dispatchers.IO) {
                         val argsObj = try { org.json.JSONObject(event.argsJson) } catch (_: Exception) { org.json.JSONObject() }
                         val wsRaw = argsObj.optString("workspace", argsObj.optString("workspaceDir", argsObj.optString("CommandLine", "")))
@@ -485,6 +510,20 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                             _compilationStatus.value = null
                         }
 
+                        // Respond to any pending build-apk IPC requests
+                        val ipcDir = File(bootstrapManager.homeDir, ".compiler_ipc")
+                        val reqFiles = ipcDir.listFiles { _, name -> name.startsWith("req_") && name.endsWith(".json") }
+                        reqFiles?.forEach { req ->
+                            try {
+                                val reqJson = org.json.JSONObject(req.readText())
+                                val resPath = reqJson.optString("resFile")
+                                if (resPath.isNotBlank()) {
+                                    File(resPath).writeText(resultJson.toString(2))
+                                }
+                                req.delete()
+                            } catch (_: Exception) {}
+                        }
+
                         withContext(Dispatchers.Main) {
                             val list = _messages.value.toMutableList()
                             val idx = list.indexOfLast { it.toolCallId == event.id }
@@ -492,7 +531,7 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                                 list[idx] = list[idx].copy(
                                     toolOutput = resultJson.toString(2),
                                     toolStatus = if (result.success) "SUCCESS" else "ERROR",
-                                    apkResult = if (result.success) result else null
+                                    apkResult = result
                                 )
                                 _messages.value = list
                             }
@@ -525,9 +564,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     val existing = current[existingIdx]
                     val duration = System.currentTimeMillis() - existing.timestamp
                     val updated = existing.copy(
-                        toolOutput = event.output,
-                        toolError = event.error,
-                        toolStatus = if (event.error != null) "ERROR" else "SUCCESS",
+                        toolOutput = event.output ?: existing.toolOutput,
+                        toolError = event.error ?: existing.toolError,
+                        toolStatus = if (event.error != null) "ERROR" else (existing.toolStatus ?: "SUCCESS"),
                         durationMs = duration
                     )
                     _messages.value = current.toMutableList().apply { set(existingIdx, updated) }
@@ -565,6 +604,14 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     activeConversationId = event.conversationId
                 }
                 val assistantText = _messages.value.lastOrNull { it.role == MessageRole.ASSISTANT }?.content ?: ""
+                if (assistantText.contains("COMPILER_REQUEST:")) {
+                    val reqSub = assistantText.substringAfter("COMPILER_REQUEST:").substringBefore("\n").trim()
+                    val ws = try {
+                        org.json.JSONObject(reqSub).optString("workspace")
+                    } catch (_: Exception) { "" }
+                    val targetDir = if (ws.isNotBlank()) File(ws) else null
+                    triggerBuildApk(targetDir)
+                }
                 usageCreditsManager.recordTurn(
                     promptText = lastUserPromptText,
                     completionText = assistantText,
@@ -647,10 +694,86 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     list[idx] = list[idx].copy(
                         toolOutput = resultJson.toString(2),
                         toolStatus = if (result.success) "SUCCESS" else "ERROR",
-                        apkResult = if (result.success) result else null
+                        apkResult = result
                     )
                     _messages.value = list
                 }
+            }
+        }
+    }
+
+    private var compilerIpcWatcherJob: kotlinx.coroutines.Job? = null
+
+    private fun startCompilerIpcWatcher() {
+        compilerIpcWatcherJob?.cancel()
+        compilerIpcWatcherJob = viewModelScope.launch(Dispatchers.IO) {
+            val ipcDir = File(bootstrapManager.homeDir, ".compiler_ipc")
+            if (!ipcDir.exists()) ipcDir.mkdirs()
+            while (isActive) {
+                try {
+                    val reqFiles = ipcDir.listFiles { _, name -> name.startsWith("req_") && name.endsWith(".json") }
+                    if (!reqFiles.isNullOrEmpty()) {
+                        for (reqFile in reqFiles) {
+                            if (!reqFile.exists()) continue
+                            handleCompilerIpcRequest(reqFile)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore or log
+                }
+                delay(300)
+            }
+        }
+    }
+
+    private suspend fun handleCompilerIpcRequest(reqFile: File) {
+        val content = try { reqFile.readText() } catch (_: Exception) { return }
+        val json = try { org.json.JSONObject(content) } catch (_: Exception) { return }
+        val resPath = json.optString("resFile")
+        val ws = json.optString("workspace", _workspaceInfo.value.currentPath.ifEmpty { bootstrapManager.defaultWorkspaceDir.absolutePath })
+        val targetDir = File(ws)
+        val toolId = "ipc_build_${System.currentTimeMillis()}"
+
+        withContext(Dispatchers.Main) {
+            _messages.value = _messages.value + ChatMessage(
+                role = MessageRole.TOOL,
+                content = "CLI Build: ${targetDir.name}",
+                toolName = "build_apk",
+                toolCallId = toolId,
+                toolArgs = content,
+                toolStatus = "RUNNING"
+            )
+        }
+
+        _compilationStatus.value = "Compiling APK on-device..."
+        val (result, resultJson) = com.yashwant.agymobile.core.compiler.BuildApkBridge.executeBuild(
+            compilerEngine,
+            targetDir
+        ) { progress ->
+            _compilationStatus.value = "${progress.message} (${progress.progressPercent}%)"
+        }
+
+        _compilationStatus.value = if (!result.success) "Build failed: ${result.errors.firstOrNull()?.message ?: result.errorMessage}" else null
+
+        if (resPath.isNotBlank()) {
+            try {
+                File(resPath).writeText(resultJson.toString(2))
+            } catch (_: Exception) {}
+        }
+        try {
+            reqFile.delete()
+        } catch (_: Exception) {}
+
+        withContext(Dispatchers.Main) {
+            val list = _messages.value.toMutableList()
+            val idx = list.indexOfLast { it.toolCallId == toolId }
+            if (idx != -1) {
+                list[idx] = list[idx].copy(
+                    toolOutput = resultJson.toString(2),
+                    toolStatus = if (result.success) "SUCCESS" else "ERROR",
+                    apkResult = result
+                )
+                _messages.value = list
             }
         }
     }

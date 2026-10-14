@@ -75,6 +75,7 @@ fun ChatScreen(
     onOpenFolderPicker: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
     onOpenHomeScreenStudio: () -> Unit = {},
+    onFixWithAi: (String) -> Unit = {},
     compilationStatus: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -353,6 +354,9 @@ fun ChatScreen(
                                             msg.apkResult.apkFile?.let { apk ->
                                                 com.yashwant.agymobile.util.ApkInstallerHelper.saveToDownloads(context, apk)
                                             }
+                                        },
+                                        onFixWithAi = { fixPrompt ->
+                                            onFixWithAi(fixPrompt)
                                         }
                                     )
                                 } else {

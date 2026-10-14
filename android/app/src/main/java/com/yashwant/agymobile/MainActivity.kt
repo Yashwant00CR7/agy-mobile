@@ -210,6 +210,7 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         onOpenHomeScreenStudio = { showHomeScreenStudio = true },
+                        onFixWithAi = { fixPrompt -> viewModel.submitPrompt(fixPrompt, boundService) },
                         compilationStatus = compilationStatus
                     )
                 }
