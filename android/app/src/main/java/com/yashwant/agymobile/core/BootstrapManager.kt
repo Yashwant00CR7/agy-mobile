@@ -4,6 +4,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
+data class GitIdentity(val name: String, val email: String)
+
 class BootstrapManager(
     val baseDir: File,
     private val nativeLibDir: File? = null
@@ -258,7 +260,7 @@ class BootstrapManager(
         } catch (_: Exception) {}
     }
 
-    fun getGitIdentity(): Pair<String, String> {
+    fun getGitIdentity(): GitIdentity {
         val gitConfig = File(homeDir, ".gitconfig")
         var name = "Yashwant00CR7"
         var email = "10a19yashwant@gmail.com"
@@ -270,7 +272,7 @@ class BootstrapManager(
                 if (trimmed.startsWith("email =")) email = trimmed.substringAfter("=").trim()
             }
         }
-        return Pair(name, email)
+        return GitIdentity(name, email)
     }
 
     fun setGitIdentity(name: String, email: String) {
@@ -407,12 +409,16 @@ class BootstrapManager(
                         branch="${'$'}(get_branch)"
                         if [ -f "${'$'}GIT_DIR/logs/HEAD" ]; then
                             tail -n 10 "${'$'}GIT_DIR/logs/HEAD"
-                        else
-                            echo "commit 7e2a2500cb30254894253c38905d905ad75c2496"
+                        elif [ -f "${'$'}GIT_DIR/refs/heads/${'$'}branch" ]; then
+                            head_sha="${'$'}(cat "${'$'}GIT_DIR/refs/heads/${'$'}branch")"
+                            echo "commit ${'$'}head_sha"
                             echo "Author: Yashwant00CR7 <10a19yashwant@gmail.com>"
                             echo "Date:   ${'$'}(date)"
                             echo ""
-                            echo "    commit on ${'$'}branch"
+                            echo "    latest commit on ${'$'}branch"
+                        else
+                            echo "fatal: your current branch '${'$'}branch' does not have any commits yet" >&2
+                            exit 128
                         fi
                         exit 0
                         ;;

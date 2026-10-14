@@ -56,6 +56,8 @@ fun ChatGptDrawer(
     usageMetrics: UsageMetrics = UsageMetrics(),
     onResetDailyUsage: () -> Unit = {},
     onSetDailyQuota: (Long) -> Unit = {},
+    gitIdentity: com.yashwant.agymobile.core.GitIdentity = com.yashwant.agymobile.core.GitIdentity("Yashwant00CR7", "10a19yashwant@gmail.com"),
+    onUpdateGitIdentity: (String, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -65,6 +67,7 @@ fun ChatGptDrawer(
     var showSettingsDialog by remember { mutableStateOf(false) }
     var showEngineLogsDialog by remember { mutableStateOf(false) }
     var showUsageBreakdownDialog by remember { mutableStateOf(false) }
+    var showGitIdentityDialog by remember { mutableStateOf(false) }
     var conversationPendingDelete by remember { mutableStateOf<ConversationItem?>(null) }
 
     ModalDrawerSheet(
@@ -526,13 +529,13 @@ fun ChatGptDrawer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${String.format("%,d", usageMetrics.dailyTotalTokens)} / ${String.format("%,d", usageMetrics.dailyQuotaTokens)}",
+                            text = "${String.format(java.util.Locale.US, "%,d", usageMetrics.dailyTotalTokens)} / ${String.format(java.util.Locale.US, "%,d", usageMetrics.dailyQuotaTokens)}",
                             color = TextSecondary,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace
                         )
                         Text(
-                            text = "${String.format("%.1f", percent * 100)}%",
+                            text = "${String.format(java.util.Locale.US, "%.1f", percent * 100)}%",
                             color = gaugeColor,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
@@ -699,6 +702,7 @@ fun ChatGptDrawer(
 
                     // Dynamic Git Account Card
                     Surface(
+                        onClick = { showGitIdentityDialog = true },
                         color = AntigravityDarkBg,
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -710,9 +714,16 @@ fun ChatGptDrawer(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text("Git Identity:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                Text("Yashwant00CR7", color = EmeraldSuccess, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(gitIdentity.name, color = EmeraldSuccess, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                             }
-                            Text("10a19yashwant@gmail.com", color = TextSecondary, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(gitIdentity.email, color = TextSecondary, fontSize = 10.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                                Text("Switch ▾", color = AntigravityBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                     // Remote Control & Accessibility Card
@@ -800,7 +811,7 @@ fun ChatGptDrawer(
                         Icon(Icons.Default.Bolt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Credits & Token Breakdown (${String.format("%.1f", usageMetrics.dailyUsagePercent * 100)}%)",
+                            "Credits & Token Breakdown (${String.format(java.util.Locale.US, "%.1f", usageMetrics.dailyUsagePercent * 100)}%)",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -900,14 +911,14 @@ fun ChatGptDrawer(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = "${String.format("%,d", usageMetrics.dailyTotalTokens)} / ${String.format("%,d", usageMetrics.dailyQuotaTokens)} tokens",
+                                    text = "${String.format(java.util.Locale.US, "%,d", usageMetrics.dailyTotalTokens)} / ${String.format(java.util.Locale.US, "%,d", usageMetrics.dailyQuotaTokens)} tokens",
                                     color = TextPrimary,
                                     fontSize = 11.sp,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Medium
                                 )
                                 Text(
-                                    text = "${String.format("%.1f", percent * 100)}%",
+                                    text = "${String.format(java.util.Locale.US, "%.1f", percent * 100)}%",
                                     color = gaugeColor,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -929,7 +940,7 @@ fun ChatGptDrawer(
                                 Column(modifier = Modifier.padding(8.dp)) {
                                     Text("Prompt (Input)", color = TextMuted, fontSize = 10.sp)
                                     Text(
-                                        String.format("%,d", usageMetrics.dailyPromptTokens),
+                                        String.format(java.util.Locale.US, "%,d", usageMetrics.dailyPromptTokens),
                                         color = AntigravityBlue,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -945,7 +956,7 @@ fun ChatGptDrawer(
                                 Column(modifier = Modifier.padding(8.dp)) {
                                     Text("Completion (Output)", color = TextMuted, fontSize = 10.sp)
                                     Text(
-                                        String.format("%,d", usageMetrics.dailyCompletionTokens),
+                                        String.format(java.util.Locale.US, "%,d", usageMetrics.dailyCompletionTokens),
                                         color = EmeraldSuccess,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -964,7 +975,7 @@ fun ChatGptDrawer(
                                 Column(modifier = Modifier.padding(8.dp)) {
                                     Text("Remaining Today", color = TextMuted, fontSize = 10.sp)
                                     Text(
-                                        String.format("%,d", usageMetrics.remainingDailyTokens),
+                                        String.format(java.util.Locale.US, "%,d", usageMetrics.remainingDailyTokens),
                                         color = TextPrimary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
@@ -1003,7 +1014,7 @@ fun ChatGptDrawer(
                                 ) {
                                     Text(model, color = TextSecondary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                                     Text(
-                                        "${String.format("%,d", tokens)} tok",
+                                        "${String.format(java.util.Locale.US, "%,d", tokens)} tok",
                                         color = TextPrimary,
                                         fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace
@@ -1032,6 +1043,114 @@ fun ChatGptDrawer(
             confirmButton = {
                 TextButton(onClick = { showUsageBreakdownDialog = false }) {
                     Text("Close", color = AntigravityBlue)
+                }
+            },
+            containerColor = AntigravitySurface,
+            textContentColor = TextPrimary
+        )
+    }
+
+    if (showGitIdentityDialog) {
+        var editName by remember { mutableStateOf(gitIdentity.name) }
+        var editEmail by remember { mutableStateOf(gitIdentity.email) }
+
+        AlertDialog(
+            onDismissRequest = { showGitIdentityDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Default.Code, contentDescription = null, tint = EmeraldSuccess)
+                    Text("Git Account Switcher", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "Configure dynamic repository commit identity. Personal projects default to personal identity.",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+
+                    Text("QUICK PRESETS", color = TextMuted, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                editName = "Yashwant00CR7"
+                                editEmail = "10a19yashwant@gmail.com"
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = EmeraldSuccess),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.5f)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Personal", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                editName = "yashwant-1443"
+                                editEmail = "ykanagaraj@vendasta.com"
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Work", fontSize = 11.sp)
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = editName,
+                        onValueChange = { editName = it },
+                        label = { Text("User Name (user.name)", fontSize = 12.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AntigravityBlue,
+                            unfocusedBorderColor = AntigravityBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = editEmail,
+                        onValueChange = { editEmail = it },
+                        label = { Text("User Email (user.email)", fontSize = 12.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = AntigravityBlue,
+                            unfocusedBorderColor = AntigravityBorder,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (editName.isNotBlank() && editEmail.isNotBlank()) {
+                            onUpdateGitIdentity(editName.trim(), editEmail.trim())
+                        }
+                        showGitIdentityDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AntigravityBlue)
+                ) {
+                    Text("Apply & Switch", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGitIdentityDialog = false }) {
+                    Text("Cancel", color = TextSecondary)
                 }
             },
             containerColor = AntigravitySurface,

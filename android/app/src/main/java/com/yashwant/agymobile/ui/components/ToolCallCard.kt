@@ -267,9 +267,9 @@ fun ToolCallCard(
                     if (displayTime > 0) {
                         Text(
                             text = if (effectiveStatus == "RUNNING") {
-                                "Running ${String.format("%.1f", displayTime / 1000.0)}s..."
+                                "Running ${String.format(java.util.Locale.US, "%.1f", displayTime / 1000.0)}s..."
                             } else if (displayTime >= 1000) {
-                                "${String.format("%.1f", displayTime / 1000.0)}s"
+                                "${String.format(java.util.Locale.US, "%.1f", displayTime / 1000.0)}s"
                             } else {
                                 "${displayTime}ms"
                             },

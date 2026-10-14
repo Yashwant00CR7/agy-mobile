@@ -214,8 +214,18 @@ class AgyAccessibilityService : AccessibilityService() {
                         if (x < 0 || y < 0) {
                             JSONObject().apply { put("success", false); put("error", "Invalid coordinates (x, y)") }
                         } else {
-                            val dispatched = service.click(x, y)
-                            JSONObject().apply { put("success", dispatched); put("message", "Clicked at ($x, $y)") }
+                            val latch = java.util.concurrent.CountDownLatch(1)
+                            var gestureCompleted = false
+                            val dispatched = service.click(x, y) { completed ->
+                                gestureCompleted = completed
+                                latch.countDown()
+                            }
+                            if (!dispatched) {
+                                JSONObject().apply { put("success", false); put("error", "Click gesture dispatch rejected by system") }
+                            } else {
+                                latch.await(600, java.util.concurrent.TimeUnit.MILLISECONDS)
+                                JSONObject().apply { put("success", gestureCompleted || dispatched); put("message", "Clicked at ($x, $y)") }
+                            }
                         }
                     }
                     "device_scroll" -> {
@@ -224,8 +234,18 @@ class AgyAccessibilityService : AccessibilityService() {
                         val endX = args.optDouble("endX", -1.0).toFloat()
                         val endY = args.optDouble("endY", -1.0).toFloat()
                         val duration = args.optLong("durationMs", 300L)
-                        val dispatched = service.scroll(startX, startY, endX, endY, duration)
-                        JSONObject().apply { put("success", dispatched); put("message", "Scrolled ($startX, $startY) -> ($endX, $endY)") }
+                        val latch = java.util.concurrent.CountDownLatch(1)
+                        var gestureCompleted = false
+                        val dispatched = service.scroll(startX, startY, endX, endY, duration) { completed ->
+                            gestureCompleted = completed
+                            latch.countDown()
+                        }
+                        if (!dispatched) {
+                            JSONObject().apply { put("success", false); put("error", "Scroll gesture dispatch rejected by system") }
+                        } else {
+                            latch.await(duration + 400, java.util.concurrent.TimeUnit.MILLISECONDS)
+                            JSONObject().apply { put("success", gestureCompleted || dispatched); put("message", "Scrolled ($startX, $startY) -> ($endX, $endY)") }
+                        }
                     }
                     "device_type_text" -> {
                         val text = args.optString("text", "")
@@ -234,8 +254,17 @@ class AgyAccessibilityService : AccessibilityService() {
                     }
                     "device_press_key" -> {
                         val key = args.optString("key", "")
-                        val pressed = service.pressKey(key)
-                        JSONObject().apply { put("success", pressed); put("message", "Pressed key: $key") }
+                        val isSensitive = key.equals("lock", true) || key.equals("power", true)
+                        if (isSensitive && !args.optBoolean("confirmed", false)) {
+                            JSONObject().apply {
+                                put("success", false)
+                                put("error", "Safety Guardrail: Pressing '$key' requires explicit confirmation (confirmed: true)")
+                                put("requiresConfirmation", true)
+                            }
+                        } else {
+                            val pressed = service.pressKey(key)
+                            JSONObject().apply { put("success", pressed); put("message", "Pressed key: $key") }
+                        }
                     }
                     "device_read_screen" -> {
                         val elements = service.readScreen()

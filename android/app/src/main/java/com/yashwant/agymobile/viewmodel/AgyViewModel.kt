@@ -9,10 +9,12 @@ import com.yashwant.agymobile.core.WorkspaceInfo
 import com.yashwant.agymobile.core.WorkspaceManager
 import com.yashwant.agymobile.model.*
 import com.yashwant.agymobile.service.AgyAgentService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class AgyViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,6 +40,9 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     val usageCreditsManager = com.yashwant.agymobile.core.UsageCreditsManager(application.filesDir)
     private val _usageMetrics = MutableStateFlow(usageCreditsManager.getMetrics())
     val usageMetrics: StateFlow<com.yashwant.agymobile.core.UsageMetrics> = _usageMetrics.asStateFlow()
+
+    private val _gitIdentity = MutableStateFlow(bootstrapManager.getGitIdentity())
+    val gitIdentity: StateFlow<com.yashwant.agymobile.core.GitIdentity> = _gitIdentity.asStateFlow()
 
     private var lastUserPromptText: String = ""
 
@@ -429,6 +434,25 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
                     toolArgs = event.argsJson,
                     toolStatus = "RUNNING"
                 )
+
+                if (event.name.startsWith("device_")) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val argsObj = try { org.json.JSONObject(event.argsJson) } catch (_: Exception) { org.json.JSONObject() }
+                        val result = com.yashwant.agymobile.service.AgyAccessibilityService.executeRemoteAction(event.name, argsObj)
+                        val success = result.optBoolean("success", false)
+                        withContext(Dispatchers.Main) {
+                            val list = _messages.value.toMutableList()
+                            val idx = list.indexOfLast { it.toolCallId == event.id }
+                            if (idx != -1) {
+                                list[idx] = list[idx].copy(
+                                    toolOutput = result.toString(2),
+                                    toolStatus = if (success) "SUCCESS" else "ERROR"
+                                )
+                                _messages.value = list
+                            }
+                        }
+                    }
+                }
             }
             is AgyEvent.ToolOutputChunk -> {
                 val current = _messages.value
@@ -540,6 +564,11 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     fun resetAllUsage() {
         usageCreditsManager.resetAllMetrics()
         _usageMetrics.value = usageCreditsManager.getMetrics()
+    }
+
+    fun updateGitIdentity(name: String, email: String) {
+        bootstrapManager.setGitIdentity(name, email)
+        _gitIdentity.value = bootstrapManager.getGitIdentity()
     }
 
     fun cancel(service: AgyAgentService? = null) {

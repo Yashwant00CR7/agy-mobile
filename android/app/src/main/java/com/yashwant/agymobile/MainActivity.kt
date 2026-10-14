@@ -92,6 +92,7 @@ class MainActivity : ComponentActivity() {
                 val selectedEffort by viewModel.selectedEffort.collectAsState()
                 val engineLogs by viewModel.engineLogs.collectAsState()
                 val usageMetrics by viewModel.usageMetrics.collectAsState()
+                val gitIdentity by viewModel.gitIdentity.collectAsState()
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
@@ -162,7 +163,9 @@ class MainActivity : ComponentActivity() {
                             },
                             usageMetrics = usageMetrics,
                             onResetDailyUsage = { viewModel.resetDailyUsage() },
-                            onSetDailyQuota = { quota -> viewModel.setDailyQuota(quota) }
+                            onSetDailyQuota = { quota -> viewModel.setDailyQuota(quota) },
+                            gitIdentity = gitIdentity,
+                            onUpdateGitIdentity = { name, email -> viewModel.updateGitIdentity(name, email) }
                         )
                     }
                 ) {

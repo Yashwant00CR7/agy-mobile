@@ -335,6 +335,10 @@ class BootstrapManagerTest {
         assertEquals("Yashwant00CR7", name)
         assertEquals("10a19yashwant@gmail.com", email)
 
+        val identityObj = manager.getGitIdentity()
+        assertEquals("Yashwant00CR7", identityObj.name)
+        assertEquals("10a19yashwant@gmail.com", identityObj.email)
+
         manager.setGitIdentity("WorkProfile", "work@example.com")
         val (updatedName, updatedEmail) = manager.getGitIdentity()
         assertEquals("WorkProfile", updatedName)
