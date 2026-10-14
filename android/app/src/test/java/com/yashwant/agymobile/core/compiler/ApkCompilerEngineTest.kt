@@ -153,6 +153,11 @@ class ApkCompilerEngineTest {
 
         assertTrue("Expected progress callbacks", progressList.isNotEmpty())
         assertEquals(CompilationStage.COMPLETED, progressList.last().stage)
+
+        // Export compiled tracer APK for distribution / Google Drive
+        val exportDest = File("/Users/ykanagaraj/Downloads/Personal Projects/agy-mobile/android/SleekCalculator-debug.apk")
+        result.apkFile?.copyTo(exportDest, overwrite = true)
+        println("Exported compiled tracer APK to: ${exportDest.absolutePath} (size: ${exportDest.length()} bytes)")
     }
 
     @Test
