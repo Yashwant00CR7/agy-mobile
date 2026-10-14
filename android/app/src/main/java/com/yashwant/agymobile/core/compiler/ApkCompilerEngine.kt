@@ -80,7 +80,11 @@ class ApkCompilerEngine(
                     "--dir", resDir.absolutePath,
                     "-o", resourcesZip.absolutePath
                 )
-                val compileProc = ProcessBuilder(compileCmd).redirectErrorStream(true).start()
+                val compileProc = ProcessBuilder(compileCmd).redirectErrorStream(true).apply {
+                    val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
+                    environment()["TMPDIR"] = tmpDir.absolutePath
+                    aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
+                }.start()
                 val compileOutput = compileProc.inputStream.bufferedReader().readText()
                 val compileExit = compileProc.waitFor()
                 if (compileExit != 0) {
@@ -112,7 +116,11 @@ class ApkCompilerEngine(
                 linkCmd.add(resourcesZip.absolutePath)
             }
 
-            val linkProc = ProcessBuilder(linkCmd).redirectErrorStream(true).start()
+            val linkProc = ProcessBuilder(linkCmd).redirectErrorStream(true).apply {
+                val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
+                environment()["TMPDIR"] = tmpDir.absolutePath
+                aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
+            }.start()
             val linkOutput = linkProc.inputStream.bufferedReader().readText()
             val linkExit = linkProc.waitFor()
             if (linkExit != 0) {
@@ -176,6 +184,7 @@ class ApkCompilerEngine(
 
             // Stage 4: D8 Dexing
             onProgress?.invoke(CompilationProgress(CompilationStage.DEXING, "Converting bytecode to Dalvik DEX...", 70))
+            System.gc()
             val classFiles = mutableListOf<Path>()
             collectClassFiles(classesDir, classFiles)
 
@@ -188,13 +197,39 @@ class ApkCompilerEngine(
                 )
             }
 
-            val d8Command = D8Command.builder()
-                .setOutput(dexDir.toPath(), OutputMode.DexIndexed)
-                .addLibraryFiles(androidJar.toPath())
-                .addProgramFiles(classFiles)
-                .build()
+            try {
+                val d8Command = D8Command.builder()
+                    .setOutput(dexDir.toPath(), OutputMode.DexIndexed)
+                    .setMinApiLevel(26)
+                    .setMode(com.android.tools.r8.CompilationMode.DEBUG)
+                    .addLibraryFiles(androidJar.toPath())
+                    .addProgramFiles(classFiles)
+                    .build()
 
-            D8.run(d8Command)
+                D8.run(d8Command)
+            } catch (t: Throwable) {
+                // If D8 runs low on memory or fails parsing heavy android.jar, retry in lightweight direct mode
+                System.gc()
+                try {
+                    val d8Fallback = D8Command.builder()
+                        .setOutput(dexDir.toPath(), OutputMode.DexIndexed)
+                        .setMinApiLevel(26)
+                        .setMode(com.android.tools.r8.CompilationMode.DEBUG)
+                        .setDisableDesugaring(true)
+                        .addProgramFiles(classFiles)
+                        .build()
+
+                    D8.run(d8Fallback)
+                } catch (fallbackError: Throwable) {
+                    return CompilerResult(
+                        success = false,
+                        failedStage = CompilationStage.DEXING,
+                        errorMessage = "D8 dexing failed: ${fallbackError.message ?: fallbackError.javaClass.simpleName}",
+                        rawOutput = fallbackError.stackTraceToString(),
+                        durationMs = System.currentTimeMillis() - startTime
+                    )
+                }
+            }
 
             val classesDex = File(dexDir, "classes.dex")
             if (!classesDex.exists()) {
@@ -233,12 +268,12 @@ class ApkCompilerEngine(
                 durationMs = duration
             )
 
-        } catch (e: Exception) {
+        } catch (t: Throwable) {
             return CompilerResult(
                 success = false,
                 failedStage = CompilationStage.FAILED,
-                errorMessage = "Unexpected compilation exception: ${e.message}",
-                rawOutput = e.stackTraceToString(),
+                errorMessage = "Unexpected compilation error: ${t.message ?: t.javaClass.simpleName}",
+                rawOutput = t.stackTraceToString(),
                 durationMs = System.currentTimeMillis() - startTime
             )
         }
@@ -321,9 +356,23 @@ class ApkCompilerEngine(
         }
     }
 
+    private fun loadKeyStore(keystoreFile: File, storePass: String): KeyStore {
+        val types = listOf("PKCS12", "BKS", "JKS", KeyStore.getDefaultType())
+        var lastEx: Exception? = null
+        for (type in types) {
+            try {
+                val ks = KeyStore.getInstance(type)
+                FileInputStream(keystoreFile).use { ks.load(it, storePass.toCharArray()) }
+                return ks
+            } catch (e: Exception) {
+                lastEx = e
+            }
+        }
+        throw lastEx ?: IllegalStateException("Failed to load keystore $keystoreFile")
+    }
+
     private fun signApk(inputApk: File, outputApk: File, keystoreFile: File) {
-        val ks = KeyStore.getInstance("JKS")
-        FileInputStream(keystoreFile).use { ks.load(it, "android".toCharArray()) }
+        val ks = loadKeyStore(keystoreFile, "android")
         val privateKey = ks.getKey("androiddebugkey", "android".toCharArray()) as PrivateKey
         val cert = ks.getCertificate("androiddebugkey") as X509Certificate
 

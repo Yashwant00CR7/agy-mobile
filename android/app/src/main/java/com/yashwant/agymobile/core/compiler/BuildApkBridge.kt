@@ -13,7 +13,16 @@ object BuildApkBridge {
         onProgress: ((CompilationProgress) -> Unit)? = null
     ): Pair<CompilerResult, JSONObject> {
         val buildDir = targetAppDir ?: workspaceDir
-        val result = engine.compileProject(buildDir, onProgress = onProgress)
+        val result = try {
+            engine.compileProject(buildDir, onProgress = onProgress)
+        } catch (t: Throwable) {
+            CompilerResult(
+                success = false,
+                failedStage = CompilationStage.FAILED,
+                errorMessage = "Fatal compilation error: ${t.message ?: t.javaClass.simpleName}",
+                rawOutput = t.stackTraceToString()
+            )
+        }
 
         val json = JSONObject()
         json.put("success", result.success)
