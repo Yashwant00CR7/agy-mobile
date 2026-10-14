@@ -1,27 +1,28 @@
 # GSD Project State
 
-**Active Milestone:** v2.2.0
-**Current Phase:** Phase 12 - Git Runtime, Markdown Typography, Live Command HUD, Usage Credits & Remote Control
+**Active Milestone:** v2.3.0
+**Current Phase:** Phase 13 - On-Device APK Compiler Engine & Conversational App Builder
 **Status:** In Progress
-**Last Updated:** 2026-10-12 18:48:00
+**Last Updated:** 2026-10-14 13:25:00
 
 ## User Directives & Decisions
-1. **Git Runtime & Dynamic Identity**:
-   - Bundle standalone ARM64 Git binary in the Android environment (`nativeLibraryDir` / `binDir`).
-   - Dynamic Git identity switching in Settings (defaulting to personal identity `Yashwant00CR7` / `10a19yashwant@gmail.com`).
-2. **Heading & Markdown Engine**:
-   - Full ChatGPT/Antigravity typography: H1 (# 22sp bold), H2 (## 18sp bold), H3 (### 15sp bold), clean indented bullet lists (•), preserving code blocks and links.
-3. **Live Command Monitoring HUD**:
-   - Interactive live card with animated status badge, live ticking timer, bounded streaming terminal viewport (~220dp max-height) with auto-scroll and line counter, plus immediate cancel/stop button.
-4. **Usage Credits & Quota Tracker**:
-   - Drawer card showing prompt/completion tokens, session/daily quota bar, tier badge, and Settings breakdown dialog.
-5. **Remote Control Accessibility Service**:
-   - Native Android `AgyAccessibilityService` with automation tools (click, scroll, type, press key, read screen) and safety guardrails.
-6. **Deployment**:
-   - Google Drive project folder `agy-mobile` (folder ID: `1nvhmMmrcd8U6oOtMNNjUP1_uB1s0WZtT`), pushing release APK upon completion.
+1. **Interaction Model**:
+   - Purely conversation-driven in `agy-mobile` chat.
+   - When the user asks `agy` to build an Android app, `agy` writes the code, invokes the on-device compiler toolchain in the background, and outputs an interactive Cyber-Minimalist `ApkInstallCard` directly in chat.
+2. **Error Handling & Self-Healing**:
+   - Transparent self-healing loop with live status pills (`Build failed: fixing syntax error in MainActivity.java...`).
+   - `agy` parses compiler output, patches code, and retries compilation autonomously up to 3 times before surfacing blockers.
+3. **Post-Build Actions**:
+   - Full lifecycle actions on the chat card: `[Install Now]` (system `PackageInstaller` via `FileProvider`), `[Share]` (Android `ACTION_SEND` share sheet), and `[Save to Downloads]` (copies to `/storage/emulated/0/Download/`).
+4. **Toolchain & Permissions**:
+   - 100% offline bundled. Pre-bundles a lightweight `android.jar`, `libaapt2.so`, and DEX-converted `ecj`, `d8`, and `apksigner`.
+   - Contextually requests `REQUEST_INSTALL_PACKAGES` only when the user taps `[Install Now]`.
+5. **Target Capability Baseline**:
+   - Standard native Android apps (Activities, XML layouts with ConstraintLayout/LinearLayout, drawables, Java logic).
+   - Validated end-to-end with a functional tracer app (Sleek Calculator).
 
 ## Current Position
-- Phase: 12-git-runtime-markdown-live-hud-remote-control
+- Phase: 13-on-device-apk-compiler
 - Total Plans: 1
 - Completed Plans: 0
 - Next Action: Execute Plan 01 Waves

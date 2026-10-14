@@ -76,6 +76,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("androidx.browser:browser:1.8.0")
 
+    // On-Device Compilation Toolchain
+    implementation("org.eclipse.jdt:ecj:3.38.0")
+    implementation("com.android.tools:r8:8.5.35")
+    implementation("com.android.tools.build:apksig:8.6.0")
+
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")

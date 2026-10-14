@@ -149,28 +149,58 @@
 
 ## Milestone v2.2.0: Git Runtime, Heading Markdown Engine, Live Command HUD, Usage Credits & Remote Accessibility
 
-- [ ] **REQ-57**: **Heading & Markdown Rich Typography Engine**:
+- [x] **REQ-57**: **Heading & Markdown Rich Typography Engine**:
   - Implement full Markdown block and line parser in `MarkdownLinkParser.kt` and `ChatScreen.kt`.
   - Parse `# H1` (22sp bold, elevated line height), `## H2` (18sp bold), `### H3` (15sp bold), stripping raw `#` characters.
   - Format bullet lists (`*`, `-`) as indented bullet points (`• `) with clean typography.
   - Retain code block syntax highlighting, copy buttons, and interactive FileProvider links.
-- [ ] **REQ-58**: **Native Standalone ARM64 Git Runtime & Dynamic Git Accounts**:
+- [x] **REQ-58**: **Native Standalone ARM64 Git Runtime & Dynamic Git Accounts**:
   - Bundle standalone ARM64 `git` executable / wrapper in the app environment so standard commands (`git status`, `git log`, `git commit`, `git diff`, `git branch`) execute reliably in Bionic shell without 'inaccessible or not found'.
   - Support Dynamic Git Accounts in `BootstrapManager.kt` and Settings, defaulting to personal identity (`Yashwant00CR7` / `10a19yashwant@gmail.com`) with instant switcher.
-- [ ] **REQ-59**: **Interactive Live Command Monitoring HUD**:
+- [x] **REQ-59**: **Interactive Live Command Monitoring HUD**:
   - Implement real-time streaming Command Execution HUD in `ToolCallCard.kt`.
   - Live animated running badge, ticking duration timer (`Running 3.4s...`), and bounded streaming terminal viewport (~220dp max-height) with auto-scroll and line-counter.
   - Fullscreen terminal expand dialog and instant "Stop / Cancel" button to kill executing commands.
-- [ ] **REQ-60**: **Usage Credits & Token Quota Tracker**:
+- [x] **REQ-60**: **Usage Credits & Token Quota Tracker**:
   - Implement `UsageCreditsManager.kt` tracking prompt tokens, output tokens, and message turns per session and day.
   - Add sleek "Credits & Token Usage" card in `ChatGptDrawer.kt` with live percentage gauge and tier indicator.
   - Provide detailed Usage & Quota Breakdown modal in Drawer Settings showing per-chat and per-model consumption.
-- [ ] **REQ-61**: **Remote Control Accessibility Service**:
+- [x] **REQ-61**: **Remote Control Accessibility Service**:
   - Implement `AgyAccessibilityService.kt` registered in AndroidManifest with `accessibility_service_config.xml`.
   - Provide automation actions: `device_click`, `device_scroll`, `device_type_text`, `device_press_key` (Home/Back/Recents), `device_read_screen`.
   - Implement safety guardrails (autonomous execution for navigation, confirmation prompt for sensitive actions).
   - Add in-app Accessibility Settings bridge card directing user to enable permission if not yet active.
-- [ ] **REQ-62**: **Test Suite Verification, Build & Google Drive Deployment**:
+- [x] **REQ-62**: **Test Suite Verification, Build & Google Drive Deployment**:
   - Write comprehensive unit tests for markdown typography, git environment setup, usage tracker, and accessibility helpers.
   - Build verified debug APK `android/agy-mobile-debug.apk`.
   - Upload release APK directly to Google Drive folder `agy-mobile` (ID: `1nvhmMmrcd8U6oOtMNNjUP1_uB1s0WZtT`).
+
+## Milestone v2.3.0: On-Device APK Compiler Engine & Conversational App Builder
+
+- [ ] **REQ-63**: **On-Device Compiler Toolchain Assets & Bootstrapper**:
+  - Package native ARM64 `libaapt2.so` in `jniLibs/arm64-v8a/` and ensure executable permissions on Android 10–15.
+  - Package DEX-converted compiler libraries (`ecj.jar`, `d8.jar`, `apksigner.jar`) and lightweight `android.jar` in `assets/compiler/`.
+  - Implement `CompilerBootstrapManager.kt` to extract, verify, and initialize toolchain jars into `context.filesDir/compiler/` with SHA-256 caching.
+- [ ] **REQ-64**: **In-Process APK Compilation Engine (`ApkCompilerEngine.kt`)**:
+  - Implement sequential 5-stage compilation:
+    1. AAPT2 compile `res/` and link against `AndroidManifest.xml` + `android.jar` to output `resources.ap_` and `R.java`.
+    2. ECJ compile Java sources + `R.java` to `.class` bytecode via `org.eclipse.jdt.internal.compiler.batch.Main`.
+    3. D8 dex `.class` bytecode to `classes.dex` via `com.android.tools.r8.D8`.
+    4. Packaging: Zip `classes.dex` into `resources.ap_` and align 4-byte boundaries.
+    5. Signing: Sign final APK using `apksigner` with auto-generated/embedded debug keystore.
+  - Provide structured progress callbacks (stage, percentage, duration) and detailed error capture.
+- [ ] **REQ-65**: **Agent Tool Integration & Self-Healing Auto-Fix Loop**:
+  - Expose a `build_apk(workspaceDir)` action callable directly by the AI agent and via CLI wrapper.
+  - Parse compiler stderr on failure, producing structured diagnostics (filename, line number, column, error explanation).
+  - Transparent self-healing loop: Agent displays a live status pill (`Build failed: fixing syntax error in MainActivity.java...`), patches source files, and retries up to 3 times before stopping.
+- [ ] **REQ-66**: **Cyber-Minimalist Chat APK Install Card (`ApkInstallCard.kt`)**:
+  - Render an interactive card in the chat stream when `build_apk` succeeds.
+  - Display App Name, Package Name, Version, APK file size, and build duration.
+  - Action 1: `[Install Now]` launches Android `PackageInstaller` via `FileProvider` with just-in-time `REQUEST_INSTALL_PACKAGES` permission prompt if not yet granted.
+  - Action 2: `[Share]` launches Android system share sheet (`ACTION_SEND`) to send APK to WhatsApp, Telegram, Drive, etc.
+  - Action 3: `[Save to Downloads]` copies signed APK to `/storage/emulated/0/Download/` with toast confirmation.
+- [ ] **REQ-67**: **Baseline Tracer App & End-to-End Verification**:
+  - Verify complete on-device compilation of an end-to-end tracer project (a sleek Material 3 Calculator app with Java logic and XML layouts).
+  - Verify compile pipeline finishes under 5 seconds.
+  - Verify all unit tests pass, `./gradlew assembleDebug` compiles cleanly, and `agy-mobile-debug.apk` is generated.
+

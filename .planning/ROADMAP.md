@@ -75,7 +75,17 @@
 *Goal:* Fix raw heading hashes in chat with a rich typography Markdown engine, bundle a native standalone ARM64 Git runtime with dynamic account identity, implement a live streaming command monitoring HUD with real-time autoscroll & cancel button, provide a visual Usage Credits & token quota tracker, and register an Android Accessibility Service for device automation with safety guardrails.
 
 #### Phases
-- [ ] **Phase 12: Git Runtime, Markdown Typography, Live Command HUD, Usage Credits & Remote Control** (In Progress)
+- [x] **Phase 12: Git Runtime, Markdown Typography, Live Command HUD, Usage Credits & Remote Control** (Completed)
   - **Goal:** Build rich Markdown heading & list parser, package standalone ARM64 git binary with dynamic git identity switcher, build real-time streaming Command Execution HUD, add drawer Credits & Token Quota tracker with settings breakdown, implement AgyAccessibilityService for device automation, and deploy to Google Drive 'agy-mobile'.
   - **Requirements Addressed:** REQ-57, REQ-58, REQ-59, REQ-60, REQ-61, REQ-62.
   - **Success Criteria:** Headings and lists render cleanly without raw '#' hashes; 'git status' runs successfully in phone shell; commands stream live terminal output with ticking timer; credits card shows token usage in drawer; accessibility service performs clicks/scrolls with safety guards; release APK uploads to 'agy-mobile' on Google Drive.
+
+### Milestone v2.3.0: On-Device APK Compiler Engine & Conversational App Builder
+*Goal:* Enable agy-mobile to compile complete, valid, signed Android APKs directly on the phone itself using an embedded on-device toolchain (libaapt2.so, ECJ, D8, ApkSigner), supported by an autonomous self-healing error recovery loop and a rich Cyber-Minimalist ApkInstallCard with 1-tap installation, system sharing, and download backup.
+
+#### Phases
+- [ ] **Phase 13: On-Device APK Compiler Engine & Conversational App Builder** (In Progress)
+  - **Goal:** Bundle ARM64 libaapt2.so and DEX toolchain jars (ecj, d8, apksigner, android.jar); implement ApkCompilerEngine orchestrating aapt2 compile/link, ecj bytecode generation, d8 dexing, zip alignment, and apksigner; expose build_apk tool to agy with transparent self-healing diagnostics; build ApkInstallCard with [Install Now] (FileProvider), [Share], and [Save to Downloads]; verify end-to-end with a functional tracer app (Sleek Calculator).
+  - **Requirements Addressed:** REQ-63, REQ-64, REQ-65, REQ-66, REQ-67.
+  - **Success Criteria:** agy-mobile compiles standard Android projects into signed APKs locally in < 5 seconds; build failures self-heal autonomously; tapping [Install Now] launches Android PackageInstaller; sharing and saving to downloads succeed; all unit tests pass; APK builds cleanly.
+
