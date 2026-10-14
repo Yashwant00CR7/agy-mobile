@@ -1,9 +1,12 @@
 package com.yashwant.agymobile.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.*
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -72,6 +75,7 @@ fun ChatScreen(
     onOpenFolderPicker: () -> Unit = {},
     onOpenLink: (String) -> Unit = {},
     onOpenHomeScreenStudio: () -> Unit = {},
+    compilationStatus: String? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -152,6 +156,41 @@ fun ChatScreen(
                 onGrantClick = onRequestStoragePermission,
                 onDismiss = { showStorageBanner = false }
             )
+
+            AnimatedVisibility(
+                visible = !compilationStatus.isNullOrBlank(),
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    color = if (compilationStatus?.contains("failed", ignoreCase = true) == true) CrimsonGlow else AntigravitySurfaceElevated,
+                    shape = RoundedCornerShape(20.dp),
+                    border = BorderStroke(1.dp, if (compilationStatus?.contains("failed", ignoreCase = true) == true) CrimsonDanger.copy(alpha = 0.5f) else AntigravityBlue.copy(alpha = 0.5f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = if (compilationStatus?.contains("failed", ignoreCase = true) == true) CrimsonDanger else AntigravityCyan
+                        )
+                        Text(
+                            text = compilationStatus ?: "",
+                            color = if (compilationStatus?.contains("failed", ignoreCase = true) == true) CrimsonDanger else TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
 
             if (messages.isEmpty()) {
                 // Empty state: Minimal ChatGPT-style Welcome screen
@@ -296,15 +335,37 @@ fun ChatScreen(
                             }
 
                             MessageRole.TOOL -> {
-                                ToolCallCard(
-                                    toolName = msg.toolName ?: "action",
-                                    argsJson = msg.toolArgs ?: msg.content,
-                                    output = msg.toolOutput,
-                                    error = msg.toolError,
-                                    status = msg.toolStatus,
-                                    durationMs = msg.durationMs,
-                                    onCancelCommand = { onCancel() }
-                                )
+                                if (msg.apkResult != null) {
+                                    val context = androidx.compose.ui.platform.LocalContext.current
+                                    ApkInstallCard(
+                                        result = msg.apkResult,
+                                        onInstall = {
+                                            msg.apkResult.apkFile?.let { apk ->
+                                                com.yashwant.agymobile.util.ApkInstallerHelper.installApk(context, apk)
+                                            }
+                                        },
+                                        onShare = {
+                                            msg.apkResult.apkFile?.let { apk ->
+                                                com.yashwant.agymobile.util.ApkInstallerHelper.shareApk(context, apk)
+                                            }
+                                        },
+                                        onSaveDownloads = {
+                                            msg.apkResult.apkFile?.let { apk ->
+                                                com.yashwant.agymobile.util.ApkInstallerHelper.saveToDownloads(context, apk)
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    ToolCallCard(
+                                        toolName = msg.toolName ?: "action",
+                                        argsJson = msg.toolArgs ?: msg.content,
+                                        output = msg.toolOutput,
+                                        error = msg.toolError,
+                                        status = msg.toolStatus,
+                                        durationMs = msg.durationMs,
+                                        onCancelCommand = { onCancel() }
+                                    )
+                                }
                             }
 
                             MessageRole.APPROVAL -> {

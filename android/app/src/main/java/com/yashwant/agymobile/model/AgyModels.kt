@@ -32,6 +32,7 @@ data class ChatMessage(
     val toolStatus: String? = null,
     val durationMs: Long? = null,
     val diffFile: String? = null,
+    val apkResult: com.yashwant.agymobile.core.compiler.CompilerResult? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 

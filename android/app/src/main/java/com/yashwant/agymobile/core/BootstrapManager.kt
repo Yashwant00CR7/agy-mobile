@@ -17,6 +17,9 @@ class BootstrapManager(
     val geminiDir: File = File(homeDir, ".gemini")
     val agyCliDir: File = File(geminiDir, "antigravity-cli")
     val gcloudDir: File = File(File(homeDir, ".config"), "gcloud")
+    val compilerManager: com.yashwant.agymobile.core.compiler.CompilerBootstrapManager by lazy {
+        com.yashwant.agymobile.core.compiler.CompilerBootstrapManager(baseDir, nativeLibDir)
+    }
 
     fun getShellEnvFile(): File = File(geminiDir, "shell_env.sh")
 
@@ -143,7 +146,7 @@ class BootstrapManager(
 
     fun extractAssetsFromContext(context: android.content.Context): Int {
         val assets = context.assets
-        return extractBundledAssets(
+        val count = extractBundledAssets(
             assetList = { path ->
                 try { assets.list(path) } catch (_: Exception) { null }
             },
@@ -151,6 +154,10 @@ class BootstrapManager(
                 try { assets.open(path) } catch (_: Exception) { null }
             }
         )
+        val compilerCount = compilerManager.extractCompilerAssets { path ->
+            try { assets.open(path) } catch (_: Exception) { null }
+        }
+        return count + compilerCount
     }
 
 
@@ -244,6 +251,20 @@ class BootstrapManager(
             setupLinkOrFallback(File(binDir, "bash"), shell)
             setupLinkOrFallback(File(binDir, "sh"), shell)
             setupGitRuntime()
+            setupCompilerLinks()
+        } catch (_: Exception) {}
+    }
+
+    private fun setupCompilerLinks() {
+        try {
+            val aapt2 = compilerManager.getAapt2Executable()
+            if (aapt2 != null && aapt2.parentFile?.absolutePath != binDir.absolutePath) {
+                setupLinkOrFallback(File(binDir, "aapt2"), aapt2)
+            }
+            val buildApkScript = File(binDir, "build-apk")
+            val scriptContent = "#!/system/bin/sh\nDIR=\"\${1:-\$(pwd)}\"\necho \"[build-apk] Target: \$DIR\"\necho \"COMPILER_REQUEST:{\\\"action\\\":\\\"build_apk\\\",\\\"workspace\\\":\\\"\$DIR\\\"}\"\n"
+            buildApkScript.writeText(scriptContent)
+            buildApkScript.setExecutable(true, false)
         } catch (_: Exception) {}
     }
 

@@ -93,6 +93,7 @@ class MainActivity : ComponentActivity() {
                 val engineLogs by viewModel.engineLogs.collectAsState()
                 val usageMetrics by viewModel.usageMetrics.collectAsState()
                 val gitIdentity by viewModel.gitIdentity.collectAsState()
+                val compilationStatus by viewModel.compilationStatus.collectAsState()
 
                 val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
                 val coroutineScope = rememberCoroutineScope()
@@ -208,7 +209,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             )
                         },
-                        onOpenHomeScreenStudio = { showHomeScreenStudio = true }
+                        onOpenHomeScreenStudio = { showHomeScreenStudio = true },
+                        compilationStatus = compilationStatus
                     )
                 }
 

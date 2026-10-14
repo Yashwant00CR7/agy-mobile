@@ -177,11 +177,11 @@
 
 ## Milestone v2.3.0: On-Device APK Compiler Engine & Conversational App Builder
 
-- [ ] **REQ-63**: **On-Device Compiler Toolchain Assets & Bootstrapper**:
+- [x] **REQ-63**: **On-Device Compiler Toolchain Assets & Bootstrapper**:
   - Package native ARM64 `libaapt2.so` in `jniLibs/arm64-v8a/` and ensure executable permissions on Android 10–15.
   - Package DEX-converted compiler libraries (`ecj.jar`, `d8.jar`, `apksigner.jar`) and lightweight `android.jar` in `assets/compiler/`.
   - Implement `CompilerBootstrapManager.kt` to extract, verify, and initialize toolchain jars into `context.filesDir/compiler/` with SHA-256 caching.
-- [ ] **REQ-64**: **In-Process APK Compilation Engine (`ApkCompilerEngine.kt`)**:
+- [x] **REQ-64**: **In-Process APK Compilation Engine (`ApkCompilerEngine.kt`)**:
   - Implement sequential 5-stage compilation:
     1. AAPT2 compile `res/` and link against `AndroidManifest.xml` + `android.jar` to output `resources.ap_` and `R.java`.
     2. ECJ compile Java sources + `R.java` to `.class` bytecode via `org.eclipse.jdt.internal.compiler.batch.Main`.
@@ -189,17 +189,17 @@
     4. Packaging: Zip `classes.dex` into `resources.ap_` and align 4-byte boundaries.
     5. Signing: Sign final APK using `apksigner` with auto-generated/embedded debug keystore.
   - Provide structured progress callbacks (stage, percentage, duration) and detailed error capture.
-- [ ] **REQ-65**: **Agent Tool Integration & Self-Healing Auto-Fix Loop**:
+- [x] **REQ-65**: **Agent Tool Integration & Self-Healing Auto-Fix Loop**:
   - Expose a `build_apk(workspaceDir)` action callable directly by the AI agent and via CLI wrapper.
   - Parse compiler stderr on failure, producing structured diagnostics (filename, line number, column, error explanation).
   - Transparent self-healing loop: Agent displays a live status pill (`Build failed: fixing syntax error in MainActivity.java...`), patches source files, and retries up to 3 times before stopping.
-- [ ] **REQ-66**: **Cyber-Minimalist Chat APK Install Card (`ApkInstallCard.kt`)**:
+- [x] **REQ-66**: **Cyber-Minimalist Chat APK Install Card (`ApkInstallCard.kt`)**:
   - Render an interactive card in the chat stream when `build_apk` succeeds.
   - Display App Name, Package Name, Version, APK file size, and build duration.
   - Action 1: `[Install Now]` launches Android `PackageInstaller` via `FileProvider` with just-in-time `REQUEST_INSTALL_PACKAGES` permission prompt if not yet granted.
   - Action 2: `[Share]` launches Android system share sheet (`ACTION_SEND`) to send APK to WhatsApp, Telegram, Drive, etc.
   - Action 3: `[Save to Downloads]` copies signed APK to `/storage/emulated/0/Download/` with toast confirmation.
-- [ ] **REQ-67**: **Baseline Tracer App & End-to-End Verification**:
+- [x] **REQ-67**: **Baseline Tracer App & End-to-End Verification**:
   - Verify complete on-device compilation of an end-to-end tracer project (a sleek Material 3 Calculator app with Java logic and XML layouts).
   - Verify compile pipeline finishes under 5 seconds.
   - Verify all unit tests pass, `./gradlew assembleDebug` compiles cleanly, and `agy-mobile-debug.apk` is generated.

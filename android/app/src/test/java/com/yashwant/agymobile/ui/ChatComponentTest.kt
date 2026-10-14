@@ -41,7 +41,8 @@ class ChatComponentTest {
     @Test
     fun testQuickActionsPresets() {
         assertTrue(QuickActions.isNotEmpty())
-        assertEquals(4, QuickActions.size)
+        assertEquals(5, QuickActions.size)
+        assertTrue(QuickActions.any { it.title == "Compile APK" })
         assertTrue(QuickActions.any { it.title == "Git Status" })
         assertTrue(QuickActions.any { it.title == "Review Diffs" })
     }
