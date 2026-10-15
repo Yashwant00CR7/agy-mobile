@@ -69,8 +69,10 @@ class ApkCompilerEngine(
         val cleanAppName = manifestInfo.appName.ifBlank { "App" }.replace(Regex("[^a-zA-Z0-9_-]"), "_")
         val signedApk = File(finalOutputDir, "$cleanAppName-debug.apk")
 
+        var currentStage = CompilationStage.INIT
         try {
             // Stage 1: Resource Compile (if resources exist)
+            currentStage = CompilationStage.RESOURCES_COMPILE
             val resourcesZip = File(buildDir, "resources.zip")
             if (resDir != null && resDir.exists() && resDir.listFiles()?.isNotEmpty() == true) {
                 onProgress?.invoke(CompilationProgress(CompilationStage.RESOURCES_COMPILE, "Compiling XML resources...", 20))
@@ -80,11 +82,21 @@ class ApkCompilerEngine(
                     "--dir", resDir.absolutePath,
                     "-o", resourcesZip.absolutePath
                 )
-                val compileProc = ProcessBuilder(compileCmd).redirectErrorStream(true).apply {
-                    val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
-                    environment()["TMPDIR"] = tmpDir.absolutePath
-                    aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
-                }.start()
+                val compileProc = try {
+                    ProcessBuilder(compileCmd).redirectErrorStream(true).apply {
+                        val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
+                        environment()["TMPDIR"] = tmpDir.absolutePath
+                        aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
+                    }.start()
+                } catch (t: Throwable) {
+                    return CompilerResult(
+                        success = false,
+                        failedStage = CompilationStage.RESOURCES_COMPILE,
+                        errorMessage = "Failed to start AAPT2 compiler: ${t.message ?: t.javaClass.simpleName}",
+                        rawOutput = t.stackTraceToString(),
+                        durationMs = System.currentTimeMillis() - startTime
+                    )
+                }
                 val compileOutput = compileProc.inputStream.bufferedReader().readText()
                 val compileExit = compileProc.waitFor()
                 if (compileExit != 0) {
@@ -101,6 +113,7 @@ class ApkCompilerEngine(
             }
 
             // Stage 2: Resource Link
+            currentStage = CompilationStage.RESOURCES_LINK
             onProgress?.invoke(CompilationProgress(CompilationStage.RESOURCES_LINK, "Linking resources & generating R.java...", 35))
             val linkCmd = mutableListOf(
                 aapt2.absolutePath,
@@ -109,18 +122,30 @@ class ApkCompilerEngine(
                 "-I", androidJar.absolutePath,
                 "--manifest", manifestFile.absolutePath,
                 "--java", genDir.absolutePath,
-                "--auto-add-overlay"
+                "--auto-add-overlay",
+                "--min-sdk-version", manifestInfo.minSdkVersion.toString(),
+                "--target-sdk-version", manifestInfo.targetSdkVersion.toString()
             )
             if (resourcesZip.exists()) {
                 linkCmd.add("-R")
                 linkCmd.add(resourcesZip.absolutePath)
             }
 
-            val linkProc = ProcessBuilder(linkCmd).redirectErrorStream(true).apply {
-                val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
-                environment()["TMPDIR"] = tmpDir.absolutePath
-                aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
-            }.start()
+            val linkProc = try {
+                ProcessBuilder(linkCmd).redirectErrorStream(true).apply {
+                    val tmpDir = File(bootstrapManager.compilerDir, "tmp").apply { mkdirs() }
+                    environment()["TMPDIR"] = tmpDir.absolutePath
+                    aapt2.parentFile?.let { environment()["LD_LIBRARY_PATH"] = it.absolutePath }
+                }.start()
+            } catch (t: Throwable) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.RESOURCES_LINK,
+                    errorMessage = "Failed to start AAPT2 linker: ${t.message ?: t.javaClass.simpleName}",
+                    rawOutput = t.stackTraceToString(),
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
             val linkOutput = linkProc.inputStream.bufferedReader().readText()
             val linkExit = linkProc.waitFor()
             if (linkExit != 0) {
@@ -136,6 +161,7 @@ class ApkCompilerEngine(
             }
 
             // Stage 3: Java Source Compilation via ECJ
+            currentStage = CompilationStage.JAVA_COMPILATION
             onProgress?.invoke(CompilationProgress(CompilationStage.JAVA_COMPILATION, "Compiling Java sources...", 50))
             val javaFiles = mutableListOf<File>()
             collectJavaFiles(resolveSrcDir(projectDir), javaFiles)
@@ -160,14 +186,24 @@ class ApkCompilerEngine(
 
             val outWriter = StringWriter()
             val errWriter = StringWriter()
-            val ecjMain = Main(
-                PrintWriter(outWriter),
-                PrintWriter(errWriter),
-                false,
-                null,
-                null
-            )
-            val ecjSuccess = ecjMain.compile(ecjArgs.toTypedArray())
+            val ecjSuccess = try {
+                val ecjMain = Main(
+                    PrintWriter(outWriter),
+                    PrintWriter(errWriter),
+                    false,
+                    null,
+                    null
+                )
+                ecjMain.compile(ecjArgs.toTypedArray())
+            } catch (t: Throwable) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.JAVA_COMPILATION,
+                    errorMessage = "ECJ compilation exception: ${t.message ?: t.javaClass.simpleName}",
+                    rawOutput = t.stackTraceToString(),
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
             val ecjErrors = errWriter.toString()
 
             if (!ecjSuccess) {
@@ -183,6 +219,7 @@ class ApkCompilerEngine(
             }
 
             // Stage 4: D8 Dexing
+            currentStage = CompilationStage.DEXING
             onProgress?.invoke(CompilationProgress(CompilationStage.DEXING, "Converting bytecode to Dalvik DEX...", 70))
             System.gc()
             val classFiles = mutableListOf<Path>()
@@ -197,10 +234,11 @@ class ApkCompilerEngine(
                 )
             }
 
+            val targetMinSdk = manifestInfo.minSdkVersion.coerceAtLeast(26)
             try {
                 val d8Command = D8Command.builder()
                     .setOutput(dexDir.toPath(), OutputMode.DexIndexed)
-                    .setMinApiLevel(26)
+                    .setMinApiLevel(targetMinSdk)
                     .setMode(com.android.tools.r8.CompilationMode.DEBUG)
                     .addLibraryFiles(androidJar.toPath())
                     .addProgramFiles(classFiles)
@@ -213,7 +251,7 @@ class ApkCompilerEngine(
                 try {
                     val d8Fallback = D8Command.builder()
                         .setOutput(dexDir.toPath(), OutputMode.DexIndexed)
-                        .setMinApiLevel(26)
+                        .setMinApiLevel(targetMinSdk)
                         .setMode(com.android.tools.r8.CompilationMode.DEBUG)
                         .setDisableDesugaring(true)
                         .addProgramFiles(classFiles)
@@ -242,17 +280,65 @@ class ApkCompilerEngine(
             }
 
             // Stage 5: Package into Unsigned APK
+            currentStage = CompilationStage.PACKAGING
             onProgress?.invoke(CompilationProgress(CompilationStage.PACKAGING, "Packaging APK container...", 85))
-            packageApk(intermediateApk, dexDir, unsignedApk)
-
-            // Stage 6: Sign APK with ApkSigner
-            onProgress?.invoke(CompilationProgress(CompilationStage.SIGNING, "Signing APK with debug keystore...", 95))
-            val keystoreFile = bootstrapManager.debugKeystoreFile
-            if (!keystoreFile.exists()) {
-                generateDebugKeystore(keystoreFile)
+            try {
+                packageApk(intermediateApk, dexDir, unsignedApk)
+            } catch (t: Throwable) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.PACKAGING,
+                    errorMessage = "APK packaging failed: ${t.message ?: t.javaClass.simpleName}",
+                    rawOutput = t.stackTraceToString(),
+                    durationMs = System.currentTimeMillis() - startTime
+                )
             }
 
-            signApk(unsignedApk, signedApk, keystoreFile)
+            if (!unsignedApk.exists() || unsignedApk.length() == 0L) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.PACKAGING,
+                    errorMessage = "Packaging produced an empty or missing unsigned APK.",
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
+
+            // Stage 6: Sign APK with ApkSigner
+            currentStage = CompilationStage.SIGNING
+            onProgress?.invoke(CompilationProgress(CompilationStage.SIGNING, "Signing APK with debug keystore...", 95))
+            val keystoreFile = bootstrapManager.debugKeystoreFile
+            if (!keystoreFile.exists() || keystoreFile.length() == 0L) {
+                generateDebugKeystore(keystoreFile)
+            }
+            if (!keystoreFile.exists() || keystoreFile.length() == 0L) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.SIGNING,
+                    errorMessage = "Debug keystore missing or empty at ${keystoreFile.absolutePath}",
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
+
+            try {
+                signApk(unsignedApk, signedApk, keystoreFile, manifestInfo.minSdkVersion.coerceAtLeast(26))
+            } catch (t: Throwable) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.SIGNING,
+                    errorMessage = "APK signing failed: ${t.message ?: t.javaClass.simpleName}",
+                    rawOutput = t.stackTraceToString(),
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
+
+            if (!signedApk.exists() || signedApk.length() == 0L) {
+                return CompilerResult(
+                    success = false,
+                    failedStage = CompilationStage.SIGNING,
+                    errorMessage = "Signing produced an empty or missing signed APK.",
+                    durationMs = System.currentTimeMillis() - startTime
+                )
+            }
 
             val duration = System.currentTimeMillis() - startTime
             onProgress?.invoke(CompilationProgress(CompilationStage.COMPLETED, "APK compilation complete!", 100))
@@ -271,8 +357,8 @@ class ApkCompilerEngine(
         } catch (t: Throwable) {
             return CompilerResult(
                 success = false,
-                failedStage = CompilationStage.FAILED,
-                errorMessage = "Unexpected compilation error: ${t.message ?: t.javaClass.simpleName}",
+                failedStage = currentStage,
+                errorMessage = "Compilation failed at stage ${currentStage.name}: ${t.message ?: t.javaClass.simpleName}",
                 rawOutput = t.stackTraceToString(),
                 durationMs = System.currentTimeMillis() - startTime
             )
@@ -319,18 +405,36 @@ class ApkCompilerEngine(
         }
     }
 
-    private fun packageApk(intermediateApk: File, dexDir: File, outputApk: File) {
+    internal fun packageApk(intermediateApk: File, dexDir: File, outputApk: File) {
         val buffer = ByteArray(8192)
         val dexFiles = dexDir.listFiles()?.filter { it.isFile && it.name.endsWith(".dex") } ?: emptyList()
 
-        ZipOutputStream(FileOutputStream(outputApk)).use { outZip ->
+        if (outputApk.exists()) {
+            outputApk.delete()
+        }
+
+        ZipOutputStream(FileOutputStream(outputApk).buffered()).use { outZip ->
             // Copy entries from intermediateApk
             if (intermediateApk.exists()) {
                 ZipFile(intermediateApk).use { inZip ->
                     val entries = inZip.entries()
                     while (entries.hasMoreElements()) {
                         val entry = entries.nextElement()
-                        outZip.putNextEntry(ZipEntry(entry.name))
+                        if (entry.isDirectory) {
+                            outZip.putNextEntry(ZipEntry(entry.name))
+                            outZip.closeEntry()
+                            continue
+                        }
+
+                        val newEntry = ZipEntry(entry.name)
+                        // If entry was stored uncompressed (e.g. resources.arsc), preserve STORED method, size, and crc
+                        if (entry.method == ZipEntry.STORED) {
+                            newEntry.method = ZipEntry.STORED
+                            newEntry.size = entry.size
+                            newEntry.compressedSize = entry.compressedSize
+                            newEntry.crc = entry.crc
+                        }
+                        outZip.putNextEntry(newEntry)
                         inZip.getInputStream(entry).use { input ->
                             var len: Int
                             while (input.read(buffer).also { len = it } > 0) {
@@ -344,8 +448,9 @@ class ApkCompilerEngine(
 
             // Inject DEX files
             dexFiles.forEach { dexFile ->
-                outZip.putNextEntry(ZipEntry(dexFile.name))
-                FileInputStream(dexFile).use { input ->
+                val dexEntry = ZipEntry(dexFile.name)
+                outZip.putNextEntry(dexEntry)
+                FileInputStream(dexFile).buffered().use { input ->
                     var len: Int
                     while (input.read(buffer).also { len = it } > 0) {
                         outZip.write(buffer, 0, len)
@@ -371,7 +476,7 @@ class ApkCompilerEngine(
         throw lastEx ?: IllegalStateException("Failed to load keystore $keystoreFile")
     }
 
-    private fun signApk(inputApk: File, outputApk: File, keystoreFile: File) {
+    private fun signApk(inputApk: File, outputApk: File, keystoreFile: File, minSdk: Int) {
         val ks = loadKeyStore(keystoreFile, "android")
         val privateKey = ks.getKey("androiddebugkey", "android".toCharArray()) as PrivateKey
         val cert = ks.getCertificate("androiddebugkey") as X509Certificate
@@ -385,6 +490,7 @@ class ApkCompilerEngine(
         val apkSigner = ApkSigner.Builder(listOf(signerConfig))
             .setInputApk(inputApk)
             .setOutputApk(outputApk)
+            .setMinSdkVersion(minSdk.coerceAtLeast(26))
             .setV1SigningEnabled(true)
             .setV2SigningEnabled(true)
             .setV3SigningEnabled(true)
@@ -417,21 +523,27 @@ class ApkCompilerEngine(
         val packageName: String,
         val appName: String,
         val versionCode: Int,
-        val versionName: String
+        val versionName: String,
+        val minSdkVersion: Int = 26,
+        val targetSdkVersion: Int = 34
     )
 
-    private fun parseManifest(manifestFile: File): ManifestInfo {
+    internal fun parseManifest(manifestFile: File): ManifestInfo {
         val content = manifestFile.readText()
         val pkgMatch = Regex("""package\s*=\s*"([^"]+)"""").find(content)
         val labelMatch = Regex("""android:label\s*=\s*"([^"]+)"""").find(content)
         val vCodeMatch = Regex("""android:versionCode\s*=\s*"([^"]+)"""").find(content)
         val vNameMatch = Regex("""android:versionName\s*=\s*"([^"]+)"""").find(content)
+        val minSdkMatch = Regex("""android:minSdkVersion\s*=\s*"(\d+)"""").find(content)
+        val targetSdkMatch = Regex("""android:targetSdkVersion\s*=\s*"(\d+)"""").find(content)
 
         return ManifestInfo(
             packageName = pkgMatch?.groupValues?.get(1) ?: "com.example.app",
             appName = labelMatch?.groupValues?.get(1)?.removePrefix("@string/") ?: "App",
             versionCode = vCodeMatch?.groupValues?.get(1)?.toIntOrNull() ?: 1,
-            versionName = vNameMatch?.groupValues?.get(1) ?: "1.0"
+            versionName = vNameMatch?.groupValues?.get(1) ?: "1.0",
+            minSdkVersion = minSdkMatch?.groupValues?.get(1)?.toIntOrNull() ?: 26,
+            targetSdkVersion = targetSdkMatch?.groupValues?.get(1)?.toIntOrNull() ?: 34
         )
     }
 }

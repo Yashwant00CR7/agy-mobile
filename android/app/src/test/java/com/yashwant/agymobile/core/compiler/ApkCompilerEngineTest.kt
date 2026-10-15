@@ -189,4 +189,85 @@ class ApkCompilerEngineTest {
         assertEquals(CompilationStage.JAVA_COMPILATION, result.failedStage)
         assertTrue(result.errors.isNotEmpty())
     }
+
+    @Test
+    fun testParseManifestSdkDefaultsAndCustom() {
+        val defaultManifest = File(projectDir, "AndroidManifest_default.xml")
+        defaultManifest.writeText(
+            """
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+                package="com.example.test">
+                <application android:label="TestApp" />
+            </manifest>
+            """.trimIndent()
+        )
+        val defaultInfo = engine.parseManifest(defaultManifest)
+        assertEquals("com.example.test", defaultInfo.packageName)
+        assertEquals("TestApp", defaultInfo.appName)
+        assertEquals(26, defaultInfo.minSdkVersion)
+        assertEquals(34, defaultInfo.targetSdkVersion)
+
+        val customManifest = File(projectDir, "AndroidManifest_custom.xml")
+        customManifest.writeText(
+            """
+            <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+                package="com.example.custom"
+                android:versionCode="42"
+                android:versionName="2.5.0">
+                <uses-sdk android:minSdkVersion="28" android:targetSdkVersion="35" />
+                <application android:label="@string/custom_title" />
+            </manifest>
+            """.trimIndent()
+        )
+        val customInfo = engine.parseManifest(customManifest)
+        assertEquals("com.example.custom", customInfo.packageName)
+        assertEquals("custom_title", customInfo.appName)
+        assertEquals(42, customInfo.versionCode)
+        assertEquals("2.5.0", customInfo.versionName)
+        assertEquals(28, customInfo.minSdkVersion)
+        assertEquals(35, customInfo.targetSdkVersion)
+    }
+
+    @Test
+    fun testPackageApkPreservesStoredEntries() {
+        val intermediateApk = File(projectDir, "test_intermediate.ap_")
+        val content = "dummy resources.arsc content bytes".toByteArray(Charsets.UTF_8)
+        val crc = java.util.zip.CRC32().apply { update(content) }.value
+
+        java.util.zip.ZipOutputStream(java.io.FileOutputStream(intermediateApk)).use { zos ->
+            val storedEntry = java.util.zip.ZipEntry("resources.arsc").apply {
+                method = java.util.zip.ZipEntry.STORED
+                size = content.size.toLong()
+                compressedSize = content.size.toLong()
+                setCrc(crc)
+            }
+            zos.putNextEntry(storedEntry)
+            zos.write(content)
+            zos.closeEntry()
+
+            val deflatedEntry = java.util.zip.ZipEntry("AndroidManifest.xml")
+            zos.putNextEntry(deflatedEntry)
+            zos.write("<manifest/>".toByteArray(Charsets.UTF_8))
+            zos.closeEntry()
+        }
+
+        val dexDir = File(projectDir, "test_dex").apply { mkdirs() }
+        File(dexDir, "classes.dex").writeText("fake dex content")
+
+        val outputApk = File(projectDir, "test_output.apk")
+        engine.packageApk(intermediateApk, dexDir, outputApk)
+
+        assertTrue(outputApk.exists())
+        ZipFile(outputApk).use { zip ->
+            val arsc = zip.getEntry("resources.arsc")
+            assertNotNull(arsc)
+            assertEquals(java.util.zip.ZipEntry.STORED, arsc.method)
+
+            val manifest = zip.getEntry("AndroidManifest.xml")
+            assertNotNull(manifest)
+
+            val dex = zip.getEntry("classes.dex")
+            assertNotNull(dex)
+        }
+    }
 }

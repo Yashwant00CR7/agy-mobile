@@ -143,6 +143,19 @@ fun ApkInstallCard(
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace
                         )
+                        if (!result.rawOutput.isNullOrBlank()) {
+                            Text(
+                                text = result.rawOutput.take(400),
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(AntigravitySurface)
+                                    .padding(6.dp)
+                            )
+                        }
                     }
                 }
 
@@ -153,6 +166,10 @@ fun ApkInstallCard(
                                 appendLine("The on-device APK compilation failed with the following diagnostics:")
                                 appendLine("Stage: ${result.failedStage?.name}")
                                 if (!result.errorMessage.isNullOrBlank()) appendLine("Message: ${result.errorMessage}")
+                                if (!result.rawOutput.isNullOrBlank()) {
+                                    appendLine("\nRaw Output / Stack Trace:")
+                                    appendLine(result.rawOutput.take(1200))
+                                }
                                 result.errors.forEach { err ->
                                     appendLine("- ${err.file ?: "File"}:${err.line ?: "?"} => ${err.message}")
                                 }

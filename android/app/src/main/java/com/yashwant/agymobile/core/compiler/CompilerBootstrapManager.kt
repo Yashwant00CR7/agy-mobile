@@ -50,8 +50,14 @@ class CompilerBootstrapManager(
         // Priority 1: nativeLibDir from Android package manager (libaapt2.so)
         if (nativeLibDir != null) {
             val libAapt2 = File(nativeLibDir, "libaapt2.so")
-            if (libAapt2.exists() && libAapt2.canExecute()) {
-                return libAapt2
+            if (libAapt2.exists()) {
+                try {
+                    libAapt2.setExecutable(true, false)
+                    libAapt2.setReadable(true, false)
+                } catch (_: Exception) {}
+                if (libAapt2.canExecute()) {
+                    return libAapt2
+                }
             }
         }
 
