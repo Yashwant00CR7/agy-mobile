@@ -32,7 +32,7 @@ data class QuickAction(
 )
 
 val QuickActions = listOf(
-    QuickAction("Compile APK", "build-apk", "Compile and sign an Android APK on-device"),
+    QuickAction("Device UI Inspection", "inspect on-screen UI elements and summarize", "Read UI hierarchy via Accessibility Service"),
     QuickAction("Git Status", "git status", "Inspect uncommitted files and branch state"),
     QuickAction("Review Diffs", "review current diffs", "Run Standards and Spec code review"),
     QuickAction("Run Tests", "run project tests", "Execute automated test suite"),

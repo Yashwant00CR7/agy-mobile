@@ -69,6 +69,7 @@ fun ChatGptDrawer(
     var showUsageBreakdownDialog by remember { mutableStateOf(false) }
     var showGitIdentityDialog by remember { mutableStateOf(false) }
     var conversationPendingDelete by remember { mutableStateOf<ConversationItem?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     ModalDrawerSheet(
         modifier = modifier
@@ -398,7 +399,61 @@ fun ChatGptDrawer(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // 3b. Device Automation Status Pill
+            val isAccessibilityActive = remember(showSettingsDialog) {
+                com.yashwant.agymobile.service.AgyAccessibilityService.isServiceActive() ||
+                        com.yashwant.agymobile.service.AgyAccessibilityService.isAccessibilityServiceEnabled(context)
+            }
+            Surface(
+                onClick = {
+                    if (!isAccessibilityActive) {
+                        com.yashwant.agymobile.service.AgyAccessibilityService.openAccessibilitySettings(context)
+                    }
+                },
+                color = if (isAccessibilityActive) EmeraldSuccess.copy(alpha = 0.08f) else AntigravitySurface,
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isAccessibilityActive) EmeraldSuccess.copy(alpha = 0.25f) else AntigravityBorder
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(if (isAccessibilityActive) EmeraldSuccess else AmberWarning)
+                        )
+                        Text(
+                            text = if (isAccessibilityActive) "Device Automation Active" else "Device Control Disabled",
+                            color = if (isAccessibilityActive) TextPrimary else TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    if (!isAccessibilityActive) {
+                        Text(
+                            text = "Enable →",
+                            color = AntigravityBlue,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 4. Conversation History List (Grouped chronologically)
             val filteredConversations = conversations.filter {
@@ -727,8 +782,7 @@ fun ChatGptDrawer(
                         }
                     }
                     // Remote Control & Accessibility Card
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    val isAccessibilityActive = remember(showSettingsDialog) {
+                    val isAccessibilityCardActive = remember(showSettingsDialog) {
                         com.yashwant.agymobile.service.AgyAccessibilityService.isServiceActive() ||
                                 com.yashwant.agymobile.service.AgyAccessibilityService.isAccessibilityServiceEnabled(context)
                     }
@@ -746,12 +800,12 @@ fun ChatGptDrawer(
                             ) {
                                 Text("Remote Control & Gestures:", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 Surface(
-                                    color = if (isAccessibilityActive) EmeraldSuccess.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f),
+                                    color = if (isAccessibilityCardActive) EmeraldSuccess.copy(alpha = 0.15f) else AmberWarning.copy(alpha = 0.15f),
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
-                                        text = if (isAccessibilityActive) "Active" else "Disabled",
-                                        color = if (isAccessibilityActive) EmeraldSuccess else AmberWarning,
+                                        text = if (isAccessibilityCardActive) "Active" else "Disabled",
+                                        color = if (isAccessibilityCardActive) EmeraldSuccess else AmberWarning,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
@@ -759,7 +813,7 @@ fun ChatGptDrawer(
                                 }
                             }
                             Text(
-                                text = if (isAccessibilityActive) {
+                                text = if (isAccessibilityCardActive) {
                                     "Ready to execute clicks, scrolls, typing, and screen reading."
                                 } else {
                                     "Enable Antigravity in Accessibility Settings to allow phone automation."
@@ -767,7 +821,7 @@ fun ChatGptDrawer(
                                 color = TextSecondary,
                                 fontSize = 10.sp
                             )
-                            if (!isAccessibilityActive) {
+                            if (!isAccessibilityCardActive) {
                                 TextButton(
                                     onClick = {
                                         com.yashwant.agymobile.service.AgyAccessibilityService.openAccessibilitySettings(context)
