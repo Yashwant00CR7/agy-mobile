@@ -17,9 +17,6 @@ class BootstrapManager(
     val geminiDir: File = File(homeDir, ".gemini")
     val agyCliDir: File = File(geminiDir, "antigravity-cli")
     val gcloudDir: File = File(File(homeDir, ".config"), "gcloud")
-    val compilerManager: com.yashwant.agymobile.core.compiler.CompilerBootstrapManager by lazy {
-        com.yashwant.agymobile.core.compiler.CompilerBootstrapManager(baseDir, nativeLibDir)
-    }
 
     fun getShellEnvFile(): File = File(geminiDir, "shell_env.sh")
 
@@ -154,10 +151,7 @@ class BootstrapManager(
                 try { assets.open(path) } catch (_: Exception) { null }
             }
         )
-        val compilerCount = compilerManager.extractCompilerAssets { path ->
-            try { assets.open(path) } catch (_: Exception) { null }
-        }
-        return count + compilerCount
+        return count
     }
 
 
@@ -251,51 +245,6 @@ class BootstrapManager(
             setupLinkOrFallback(File(binDir, "bash"), shell)
             setupLinkOrFallback(File(binDir, "sh"), shell)
             setupGitRuntime()
-            setupCompilerLinks()
-        } catch (_: Exception) {}
-    }
-
-    private fun setupCompilerLinks() {
-        try {
-            val aapt2 = compilerManager.getAapt2Executable()
-            if (aapt2 != null && aapt2.parentFile?.absolutePath != binDir.absolutePath) {
-                setupLinkOrFallback(File(binDir, "aapt2"), aapt2)
-            }
-            val buildApkScript = File(binDir, "build-apk")
-            val ipcDir = File(homeDir, ".compiler_ipc")
-            ipcDir.mkdirs()
-
-            val scriptContent = """
-                #!/system/bin/sh
-                DIR="${'$'}{1:-${'$'}(pwd)}"
-                IPC_DIR="${ipcDir.absolutePath}"
-                mkdir -p "${'$'}IPC_DIR"
-                REQ_ID="req_${'$'}(date +%s 2>/dev/null || echo 1)"
-                REQ_FILE="${'$'}IPC_DIR/${'$'}REQ_ID.json"
-                RES_FILE="${'$'}IPC_DIR/${'$'}REQ_ID.res"
-
-                echo "{\"workspace\":\"${'$'}DIR\",\"resFile\":\"${'$'}RES_FILE\"}" > "${'$'}REQ_FILE"
-                echo "[build-apk] Target: ${'$'}DIR (dispatched to on-device engine)"
-
-                WAITED=0
-                while [ ! -f "${'$'}RES_FILE" ] && [ ${'$'}WAITED -lt 150 ]; do
-                    sleep 0.2
-                    WAITED=${'$'}((WAITED + 1))
-                done
-
-                if [ -f "${'$'}RES_FILE" ]; then
-                    cat "${'$'}RES_FILE"
-                    rm -f "${'$'}REQ_FILE" "${'$'}RES_FILE" 2>/dev/null
-                    exit 0
-                else
-                    echo "COMPILER_REQUEST:{\"action\":\"build_apk\",\"workspace\":\"${'$'}DIR\"}"
-                    rm -f "${'$'}REQ_FILE" 2>/dev/null
-                    exit 0
-                fi
-            """.trimIndent() + "\n"
-
-            buildApkScript.writeText(scriptContent)
-            buildApkScript.setExecutable(true, false)
         } catch (_: Exception) {}
     }
 
@@ -591,22 +540,13 @@ class BootstrapManager(
                 ruleFile.writeText(ruleContent)
             }
 
-            val compilerRuleContent = """
-                # On-Device Android APK Compilation Policy
-                - **Building APKs**: You have access to a complete, standalone on-device Android build toolchain (AAPT2, ECJ, D8, and ApkSigner) running directly on the phone.
-                - **Never Claim PC Required**: NEVER tell the user that compiling an Android APK requires a PC, Docker, or external Gradle. You can compile on-device.
-                - **Compilation Tool**: When the user asks you to build, compile, package, or create an Android APK, call `run_command` with `build-apk` (or `build-apk <project_dir>`).
-                - **Autonomous Self-Healing**: If compilation returns errors (syntax errors, missing imports, invalid XML attributes), inspect the file and line number in the diagnostic report, patch the code, and recompile.
-            """.trimIndent()
-            File(rulesDir, "on-device-compiler.md").writeText(compilerRuleContent)
-
             // Also persist to global GEMINI.md in home directory for Antigravity system prompt
             val globalGeminiMd = File(homeDir, ".gemini/GEMINI.md")
             globalGeminiMd.parentFile?.mkdirs()
-            globalGeminiMd.writeText("$ruleContent\n\n$compilerRuleContent\n")
+            globalGeminiMd.writeText("$ruleContent\n")
 
             val rootGeminiMd = File(homeDir, "GEMINI.md")
-            rootGeminiMd.writeText("$ruleContent\n\n$compilerRuleContent\n")
+            rootGeminiMd.writeText("$ruleContent\n")
         } catch (_: Exception) {}
     }
 

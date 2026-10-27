@@ -49,9 +49,6 @@ class AgyViewModel(application: Application) : AndroidViewModel(application) {
     private val _gitIdentity = MutableStateFlow(bootstrapManager.getGitIdentity())
     val gitIdentity: StateFlow<com.yashwant.agymobile.core.GitIdentity> = _gitIdentity.asStateFlow()
 
-    val compilerEngine: com.yashwant.agymobile.core.compiler.ApkCompilerEngine by lazy {
-        com.yashwant.agymobile.core.compiler.ApkCompilerEngine(bootstrapManager.compilerManager)
-    }
     private val _compilationStatus = MutableStateFlow<String?>(null)
     val compilationStatus: StateFlow<String?> = _compilationStatus.asStateFlow()
 
